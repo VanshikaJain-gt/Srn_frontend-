@@ -7,6 +7,7 @@ export interface User {
   phone?: string | null;
   role: string;
   profilePhotoUrl?: string | null;
+  passwordSet?: boolean;
   stravaConnected?: boolean;
   createdAt?: string;
 }
@@ -32,11 +33,12 @@ export interface GoogleLoginRequest {
   idToken: string;
 }
 
-/**
- * Register a new user.
- *
- * POST /api/auth/register
- */
+export interface ChangePasswordRequest {
+  currentPassword?: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export async function registerUser(
   data: RegisterRequest
 ): Promise<AuthResponse> {
@@ -50,11 +52,6 @@ export async function registerUser(
   return response;
 }
 
-/**
- * Login existing user.
- *
- * POST /api/auth/login
- */
 export async function loginUser(
   data: LoginRequest
 ): Promise<AuthResponse> {
@@ -68,11 +65,6 @@ export async function loginUser(
   return response;
 }
 
-/**
- * Login using Google ID token.
- *
- * POST /api/auth/google
- */
 export async function loginWithGoogle(
   data: GoogleLoginRequest
 ): Promise<AuthResponse> {
@@ -86,18 +78,16 @@ export async function loginWithGoogle(
   return response;
 }
 
-/**
- * Get currently authenticated user's profile.
- *
- * GET /api/users/me
- */
 export async function getCurrentUser(): Promise<User> {
   return apiClient.get<User>("/api/users/me");
 }
 
-/**
- * Logout the current frontend session.
- */
+export async function changePassword(
+  data: ChangePasswordRequest
+): Promise<void> {
+  await apiClient.put<void>("/api/users/me/password", data);
+}
+
 export function logoutUser(): void {
   apiClient.clearToken();
 }

@@ -48,7 +48,11 @@ export default function LoginPage() {
 
       console.log("Email login successful:", response);
 
-      router.push("/dashboard");
+      if (response.user.role === "ADMIN") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       console.error("Login failed:", err);
 
@@ -91,7 +95,11 @@ export default function LoginPage() {
 
       console.log("Google login successful:", response);
 
-      router.push("/dashboard");
+      if (response.user.role === "ADMIN") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       console.error("Google login failed:", err);
 
