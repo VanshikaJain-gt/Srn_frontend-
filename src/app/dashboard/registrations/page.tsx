@@ -49,6 +49,20 @@ interface RazorpayInstance {
   open: () => void;
 }
 
+// The backend response includes these fields, while the shared
+// RegistrationResponse type is older and does not declare all of them yet.
+// Keep the page aligned with the real /api/users/me registration payload
+// without changing the existing service implementation.
+type RegistrationView = Omit<
+  RegistrationResponse,
+  "feePaid" | "registeredAt" | "registrationSource" | "registrationStatus"
+> & {
+  feePaid?: number | null;
+  registeredAt?: string | null;
+  registrationSource?: string | null;
+  registrationStatus?: string | null;
+};
+
 function getPaymentLabel(status: PaymentStatus) {
   switch (status) {
     case "NOT_REQUIRED":
@@ -170,12 +184,14 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 export default function RegistrationsPage() {
-  const [registrations, setRegistrations] = useState<RegistrationResponse[]>(
+  const [registrations, setRegistrations] = useState<RegistrationView[]>(
     []
   );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedRegistration, setSelectedRegistration] =
+    useState<RegistrationView | null>(null);
 
   const [paymentLoadingId, setPaymentLoadingId] = useState<number | null>(
     null
@@ -559,6 +575,7 @@ export default function RegistrationsPage() {
                     type="challenge"
                     paymentLoadingId={paymentLoadingId}
                     onPayNow={handlePayNow}
+                    onViewDetails={setSelectedRegistration}
                   />
                 ))}
               </div>
@@ -588,12 +605,20 @@ export default function RegistrationsPage() {
                     type="event"
                     paymentLoadingId={paymentLoadingId}
                     onPayNow={handlePayNow}
+                    onViewDetails={setSelectedRegistration}
                   />
                 ))}
               </div>
             </section>
           )}
       </div>
+
+      {selectedRegistration && (
+        <RegistrationDetailsModal
+          registration={selectedRegistration}
+          onClose={() => setSelectedRegistration(null)}
+        />
+      )}
     </main>
   );
 }
@@ -603,11 +628,13 @@ function RegistrationCard({
   type,
   paymentLoadingId,
   onPayNow,
+  onViewDetails,
 }: {
-  registration: RegistrationResponse;
+  registration: RegistrationView;
   type: "challenge" | "event";
   paymentLoadingId: number | null;
   onPayNow: (registrationId: number) => void;
+  onViewDetails: (registration: RegistrationView) => void;
 }) {
   const title = getRegistrationTitle(registration);
 
@@ -663,6 +690,17 @@ function RegistrationCard({
             {getPaymentLabel(registration.paymentStatus)}
           </div>
 
+          <button
+            type="button"
+            onClick={() => onViewDetails(registration)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-bold text-orange-700 transition hover:bg-orange-50"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              visibility
+            </span>
+            View Details
+          </button>
+
           {registration.paymentStatus === "PENDING" && (
             <button
               type="button"
@@ -700,16 +738,164 @@ function RegistrationCard({
         <InfoItem
           label="Amount"
           value={
-            registration.amount != null
-              ? `₹${registration.amount}`
+            registration.feePaid != null
+              ? `₹${Number(registration.feePaid).toFixed(2)}`
               : "-"
           }
         />
 
         <InfoItem
           label="Registered On"
-          value={formatDate(registration.createdAt)}
+          value={formatDate(registration.registeredAt)}
         />
+      </div>
+    </div>
+  );
+}
+
+function RegistrationDetailsModal({
+  registration,
+  onClose,
+}: {
+  registration: RegistrationView;
+  onClose: () => void;
+}) {
+  const title = getRegistrationTitle(registration);
+  const challengeOrEvent = isChallengeRegistration(registration)
+    ? "Challenge"
+    : "Event";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="registration-details-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 md:px-8">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-600">
+              {challengeOrEvent} Registration
+            </p>
+            <h2
+              id="registration-details-title"
+              className="mt-1 text-2xl font-black text-gray-950"
+            >
+              {title}
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close registration details"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition hover:bg-gray-200"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div className="space-y-5 p-6 md:p-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={`inline-flex rounded-full px-4 py-2 text-xs font-bold ${getPaymentClasses(
+                registration.paymentStatus
+              )}`}
+            >
+              Payment: {getPaymentLabel(registration.paymentStatus)}
+            </span>
+
+            {registration.registrationStatus && (
+              <span className="inline-flex rounded-full bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700">
+                Registration: {registration.registrationStatus}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <InfoItem
+              label="Registration ID"
+              value={`#${registration.id}`}
+            />
+
+            <InfoItem
+              label="Amount Paid"
+              value={
+                registration.feePaid != null
+                  ? `₹${Number(registration.feePaid).toFixed(2)}`
+                  : "-"
+              }
+            />
+
+            <InfoItem
+              label="Category"
+              value={registration.categoryName || "-"}
+            />
+
+            <InfoItem
+              label="T-Shirt Size"
+              value={registration.tshirtSize || "-"}
+            />
+
+            <InfoItem
+              label="Registered On"
+              value={formatDate(registration.registeredAt)}
+            />
+
+            <InfoItem
+              label="Registration Source"
+              value={registration.registrationSource || "-"}
+            />
+
+            {registration.challengeId != null && (
+              <InfoItem
+                label="Challenge ID"
+                value={`#${registration.challengeId}`}
+              />
+            )}
+
+            {registration.eventId != null && (
+              <InfoItem
+                label="Event ID"
+                value={`#${registration.eventId}`}
+              />
+            )}
+          </div>
+
+          <div className="rounded-2xl bg-orange-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                <span className="material-symbols-outlined">
+                  verified
+                </span>
+              </div>
+
+              <div>
+                <p className="font-bold text-gray-900">
+                  Registration information
+                </p>
+                <p className="mt-1 text-sm leading-6 text-gray-600">
+                  These details are loaded directly from your current
+                  registration data.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-2xl bg-orange-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-700"
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );

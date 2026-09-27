@@ -1,18 +1,20 @@
 import { apiClient } from "@/lib/api-client";
 
-export type TshirtSize =
-  | "XS"
-  | "S"
-  | "M"
-  | "L"
-  | "XL"
-  | "XXL";
+export type TshirtSize = "XS" | "S" | "M" | "L" | "XL" | "XXL";
 
 export type PaymentStatus =
   | "NOT_REQUIRED"
   | "PENDING"
   | "PAID"
-  | "VERIFIED";
+  | "VERIFIED"
+  | string;
+
+export type RegistrationStatus = "ACTIVE" | "CANCELLED" | "COMPLETED" | string;
+
+export interface CreateEventRegistrationRequest {
+  eventId: number;
+  tshirtSize: TshirtSize;
+}
 
 export interface CreateChallengeRegistrationRequest {
   challengeId: number;
@@ -31,22 +33,25 @@ export interface RegistrationResponse {
   tshirtSize?: TshirtSize | null;
   paymentStatus: PaymentStatus;
   amount?: number | null;
+  feePaid?: number | null;
+  registrationSource?: string | null;
+  registrationStatus?: RegistrationStatus | null;
+  registeredAt?: string | null;
   createdAt?: string | null;
+}
+
+export async function registerForEvent(
+  data: CreateEventRegistrationRequest
+): Promise<RegistrationResponse> {
+  return apiClient.post<RegistrationResponse>("/api/registrations", data);
 }
 
 export async function registerForChallenge(
   data: CreateChallengeRegistrationRequest
 ): Promise<RegistrationResponse> {
-  return apiClient.post<RegistrationResponse>(
-    "/api/registrations",
-    data
-  );
+  return apiClient.post<RegistrationResponse>("/api/registrations", data);
 }
 
-export async function getMyRegistrations(): Promise<
-  RegistrationResponse[]
-> {
-  return apiClient.get<RegistrationResponse[]>(
-    "/api/registrations/me"
-  );
+export async function getMyRegistrations(): Promise<RegistrationResponse[]> {
+  return apiClient.get<RegistrationResponse[]>("/api/registrations/me");
 }

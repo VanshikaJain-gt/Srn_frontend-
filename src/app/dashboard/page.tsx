@@ -115,14 +115,15 @@ export default function DashboardPage() {
         <nav className="flex-1 space-y-1">
           <NavItem href="/" icon="⌂" label="Home" />
           <NavItem active href="/dashboard" icon="▣" label="Dashboard" />
-          <NavItem href="/profile" icon="◉" label="Profile" />
+          <NavItem href="/dashboard/profile" icon="◉" label="Profile" />
           <NavItem
           href="/dashboard/registrations"
           icon="✓"
            label="My Registrations"
            />
-          <NavItem href="/strava" icon="↻" label="Strava Sync" />
-          <NavItem href="/achievements" icon="★" label="Achievements" />
+          <NavItem href="/dashboard/activities" icon="🏃" label="My Activities" />
+          <NavItem href="/dashboard/strava" icon="↻" label="Strava Sync" />
+          <NavItem href="/dashboard/achievements" icon="★" label="Achievements" />
           <NavItem href="/dashboard/settings" icon="⚙" label="Settings" />
         </nav>
 
@@ -220,7 +221,7 @@ export default function DashboardPage() {
               <div className="rounded-[1.5rem] bg-white p-6 shadow-sm sm:p-8">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="srn-font-sora text-2xl font-bold">Recent Activities</h2>
-                  <Link href="/strava" className="hidden items-center gap-1 text-sm font-bold text-[#ab3500] hover:underline sm:flex">
+                  <Link href="/dashboard/strava" className="hidden items-center gap-1 text-sm font-bold text-[#ab3500] hover:underline sm:flex">
                     View Strava <span>↗</span>
                   </Link>
                 </div>
