@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sunrise Runners Network",
-  description: "Run Together. Grow Together.",
+  title: "Sunrisers Runners Network",
+  description: "Sunrisers Runners Network",
+  icons: {
+    icon: "/logo.png.jpeg",
+    shortcut: "/logo.png.jpeg",
+    apple: "/logo.png.jpeg",
+  },
 };
 
 export default function RootLayout({

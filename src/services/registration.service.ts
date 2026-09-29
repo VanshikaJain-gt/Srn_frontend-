@@ -55,3 +55,20 @@ export async function registerForChallenge(
 export async function getMyRegistrations(): Promise<RegistrationResponse[]> {
   return apiClient.get<RegistrationResponse[]>("/api/registrations/me");
 }
+
+
+export async function cancelMyRegistration(
+  registrationId: number
+): Promise<RegistrationResponse> {
+  return apiClient.put<RegistrationResponse>(
+    `/api/registrations/${registrationId}/cancel`
+  );
+}
+
+export async function cancelAdminRegistration(
+  registrationId: number
+): Promise<RegistrationResponse> {
+  return apiClient.put<RegistrationResponse>(
+    `/api/admin/registrations/${registrationId}/cancel`
+  );
+}

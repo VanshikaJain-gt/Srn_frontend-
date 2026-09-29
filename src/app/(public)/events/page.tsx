@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, apiClient } from "@/lib/api-client";
 import { getEvents, EventResponse } from "@/services/event.service";
 import {
+  getMyRegistrations,
   registerForEvent,
   TshirtSize,
 } from "@/services/registration.service";
@@ -62,9 +63,11 @@ function getLevel(event: EventResponse) {
   return "Level: Open";
 }
 
-function formatDate(date: string) {
+function formatDate(date?: string | null) {
+  if (!date) return "Date TBA";
+
   const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return date;
+  if (Number.isNaN(parsed.getTime())) return "Date TBA";
 
   return parsed.toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -73,8 +76,9 @@ function formatDate(date: string) {
   });
 }
 
-function formatPrice(price: number) {
-  return `₹${Number(price || 0).toLocaleString("en-IN")}`;
+function formatPrice(price: number | null | undefined) {
+  if (price == null || Number.isNaN(Number(price))) return "Free";
+  return `₹${Number(price).toLocaleString("en-IN")}`;
 }
 
 export default function EventsPage() {
@@ -136,6 +140,43 @@ export default function EventsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMyEventRegistrations() {
+      if (!apiClient.getToken()) {
+        setRegisteredEventIds(new Set());
+        return;
+      }
+
+      try {
+        const registrations = await getMyRegistrations();
+        if (cancelled) return;
+
+        const eventIds = new Set<number>();
+        for (const registration of registrations) {
+          if (
+            typeof registration.eventId === "number" &&
+            registration.registrationStatus !== "CANCELLED"
+          ) {
+            eventIds.add(registration.eventId);
+          }
+        }
+        setRegisteredEventIds(eventIds);
+      } catch {
+        // Registration history is secondary to the public event listing.
+        // Do not block the page if the user is not authenticated or the
+        // registrations endpoint is temporarily unavailable.
+      }
+    }
+
+    loadMyEventRegistrations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     let list = events.filter((event) => {
       const searchable = `${event.title} ${event.description ?? ""} ${
@@ -148,7 +189,8 @@ export default function EventsPage() {
       const matchesLocation =
         location.trim() === "" ||
         (event.location ?? "").toLowerCase().includes(location.trim().toLowerCase());
-      const matchesDate = dateFilter === "" || event.eventDate === dateFilter;
+      const matchesDate =
+        dateFilter === "" || (event.eventDate ?? "").slice(0, 10) === dateFilter;
 
       return matchesSearch && matchesCategory && matchesLocation && matchesDate;
     });
@@ -162,9 +204,9 @@ export default function EventsPage() {
         return Number(b.registrationFee) - Number(a.registrationFee);
       }
 
-      return (
-        new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()
-      );
+      const aTime = a.eventDate ? new Date(a.eventDate).getTime() : Number.POSITIVE_INFINITY;
+      const bTime = b.eventDate ? new Date(b.eventDate).getTime() : Number.POSITIVE_INFINITY;
+      return aTime - bTime;
     });
 
     return list;
@@ -470,7 +512,9 @@ export default function EventsPage() {
                             Registration
                           </span>
                           <span className="font-display-xl text-stat-value text-on-surface">
-                            {formatPrice(event.registrationFee)}
+                            {event.isExternal
+                              ? "External"
+                              : formatPrice(event.registrationFee)}
                           </span>
                         </div>
 

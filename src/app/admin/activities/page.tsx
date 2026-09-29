@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityResponse,
+  getActivityStatus,
   getAdminActivities,
+  getDurationMinutes,
   rejectActivity,
   verifyActivity,
 } from "@/services/activity.service";
@@ -53,7 +55,7 @@ export default function AdminActivitiesPage() {
 
   const filteredActivities = useMemo(() => {
     if (filter === "ALL") return activities;
-    return activities.filter((activity) => activity.status === filter);
+    return activities.filter((activity) => getActivityStatus(activity) === filter);
   }, [activities, filter]);
 
   async function handleVerify(id: number) {
@@ -78,7 +80,14 @@ export default function AdminActivitiesPage() {
     try {
       setWorkingId(id);
       setError("");
-      await rejectActivity(id, { reason: reason.trim() || undefined });
+      const trimmedReason = reason.trim();
+
+      if (!trimmedReason) {
+        setError("Rejection reason is required.");
+        return;
+      }
+
+      await rejectActivity(id, { reason: trimmedReason });
       await loadActivities();
     } catch (err) {
       setError(
@@ -149,7 +158,7 @@ export default function AdminActivitiesPage() {
           <div className="divide-y divide-gray-100">
             {filteredActivities.map((activity) => {
               const isWorking = workingId === activity.id;
-              const status = activity.status || "PENDING";
+              const status = getActivityStatus(activity);
 
               return (
                 <div key={activity.id} className="p-5 sm:p-6">
@@ -179,9 +188,6 @@ export default function AdminActivitiesPage() {
 
                         <p className="mt-1 text-sm text-gray-500">
                           Activity #{activity.id}
-                          {activity.registrationId
-                            ? ` • Registration #${activity.registrationId}`
-                            : ""}
                           {" • "}
                           {formatDate(activity.activityDate)}
                         </p>
@@ -194,14 +200,12 @@ export default function AdminActivitiesPage() {
                           <Info
                             label="Duration"
                             value={
-                              activity.durationMinutes
-                                ? `${activity.durationMinutes} min`
-                                : "-"
+                              `${getDurationMinutes(activity)} min`
                             }
                           />
                           <Info
-                            label="Type"
-                            value={activity.activityType || "-"}
+                            label="Caption"
+                            value={activity.caption || "-"}
                           />
                           <Info
                             label="Source"

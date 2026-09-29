@@ -255,7 +255,7 @@ export default function Home() {
         </div>
 
         <h3 className="text-4xl font-bold">
-          Sunrise 5K
+          Sunrisers 5K
         </h3>
 
         <p className="mt-3 text-lg text-white/80">
@@ -552,7 +552,7 @@ export default function Home() {
       <h2 className="mt-8 text-5xl font-black leading-tight text-white md:text-7xl">
         Ready to Find
         <br />
-        Your Sunrise?
+        Your Sunrisers?
       </h2>
 
       <p className="mx-auto mt-8 max-w-3xl text-xl leading-9 text-white/80">

@@ -9,10 +9,10 @@ import { getMyRegistrations, RegistrationResponse } from "@/services/registratio
 import {
   ActivityResponse,
   createManualActivity,
+  getActivityStatus,
+  getDurationMinutes,
   getMyActivities,
 } from "@/services/activity.service";
-
-const activityTypes = ["RUN", "WALK", "CYCLING", "OTHER"];
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -52,7 +52,7 @@ export default function ActivitiesPage() {
   );
   const [distanceKm, setDistanceKm] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
-  const [activityType, setActivityType] = useState("RUN");
+  const [caption, setCaption] = useState("");
 
   const activeChallengeRegistrations = useMemo(
     () =>
@@ -161,7 +161,7 @@ export default function ActivitiesPage() {
         activityDate,
         distanceKm: distance,
         durationSec: Math.round(duration * 60),
-        activityType,
+        caption: caption.trim() || null,
       });
 
       setSuccess(
@@ -169,6 +169,7 @@ export default function ActivitiesPage() {
       );
       setDistanceKm("");
       setDurationMinutes("");
+      setCaption("");
       await loadData();
     } catch (err) {
       setError(
@@ -266,18 +267,15 @@ export default function ActivitiesPage() {
                 />
               </Field>
 
-              <Field label="Activity Type">
-                <select
-                  value={activityType}
-                  onChange={(event) => setActivityType(event.target.value)}
-                  className="w-full rounded-xl border border-[#e1bfb5] bg-white px-4 py-3 text-sm outline-none focus:border-[#ab3500]"
-                >
-                  {activityTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
+              <Field label="Activity Caption (optional)">
+                <textarea
+                  value={caption}
+                  onChange={(event) => setCaption(event.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="e.g. Morning 5K run at the park"
+                  className="w-full resize-none rounded-xl border border-[#e1bfb5] px-4 py-3 text-sm outline-none focus:border-[#ab3500]"
+                />
               </Field>
 
               {!activeChallengeRegistrations.length && !loading && (
@@ -350,19 +348,17 @@ export default function ActivitiesPage() {
                           </p>
                           <p className="mt-1 text-xs text-[#594139]">
                             {formatDate(activity.activityDate)}
-                            {activity.activityType
-                              ? ` • ${activity.activityType}`
-                              : ""}
+                            {activity.caption ? ` • ${activity.caption}` : ""}
                           </p>
                         </div>
                       </div>
 
                       <span
                         className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${statusClass(
-                          activity.status
+                          getActivityStatus(activity)
                         )}`}
                       >
-                        {activity.status || "PENDING"}
+                        {getActivityStatus(activity)}
                       </span>
                     </div>
 
@@ -371,9 +367,7 @@ export default function ActivitiesPage() {
                       <Stat
                         label="Duration"
                         value={
-                          activity.durationMinutes
-                            ? `${activity.durationMinutes} min`
-                            : "-"
+                          `${getDurationMinutes(activity)} min`
                         }
                       />
                       <Stat
