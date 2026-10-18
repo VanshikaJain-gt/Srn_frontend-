@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { ApiError, apiClient } from "@/lib/api-client";
+import { apiClient, getErrorMessage } from "@/lib/api-client";
 import { getEvents, EventResponse } from "@/services/event.service";
 import {
   getMyRegistrations,
   registerForEvent,
+  TSHIRT_SIZES,
   TshirtSize,
 } from "@/services/registration.service";
 
@@ -77,7 +78,7 @@ function formatDate(date?: string | null) {
 }
 
 function formatPrice(price: number | null | undefined) {
-  if (price == null || Number.isNaN(Number(price))) return "Free";
+  if (price == null || Number.isNaN(Number(price)) || Number(price) === 0) return "Free";
   return `₹${Number(price).toLocaleString("en-IN")}`;
 }
 
@@ -121,13 +122,7 @@ export default function EventsPage() {
       } catch (err) {
         if (cancelled) return;
 
-        if (err instanceof ApiError) {
-          setError(err.message);
-        } else if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Unable to load events.");
-        }
+        setError(getErrorMessage(err, "Unable to load events."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -230,7 +225,7 @@ export default function EventsPage() {
   }
 
   async function handleRegister() {
-    if (!selectedEvent) return;
+    if (!selectedEvent || registering) return;
 
     const token = apiClient.getToken();
     if (!token) {
@@ -255,18 +250,12 @@ export default function EventsPage() {
       });
 
       setRegistrationSuccess(
-        `Registration #${response.id} created successfully. Payment is ${
-          response.paymentStatus || "PENDING"
-        }. You can complete payment from My Registrations.`
+        response.paymentStatus === "PENDING"
+          ? `Registration #${response.id} created. Complete the payment from My Registrations.`
+          : `Registration #${response.id} confirmed.`
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        setRegistrationError(err.message);
-      } else if (err instanceof Error) {
-        setRegistrationError(err.message);
-      } else {
-        setRegistrationError("Unable to register for this event.");
-      }
+      setRegistrationError(getErrorMessage(err, "Unable to register for this event."));
     } finally {
       setRegistering(false);
     }
@@ -480,7 +469,9 @@ export default function EventsPage() {
                     <div className="flex flex-grow flex-col gap-md p-lg">
                       <div>
                         <h3 className="font-headline-md text-headline-md leading-tight text-on-surface">
-                          {event.title}
+                          <Link href={`/events/${event.id}`} className="hover:text-primary hover:underline">
+                            {event.title}
+                          </Link>
                         </h3>
                         <p className="mt-2 flex items-center gap-1 text-on-surface-variant">
                           <span className="material-symbols-outlined text-base">location_on</span>
@@ -528,6 +519,13 @@ export default function EventsPage() {
                             className="rounded-2xl bg-green-600 px-lg py-3 font-label-bold text-white transition-all hover:bg-green-700"
                           >
                             Registered
+                          </Link>
+                        ) : isExternal && !event.externalRegistrationUrl ? (
+                          <Link
+                            href={`/events/${event.id}`}
+                            className="rounded-2xl border border-primary px-lg py-3 font-label-bold text-primary transition-all hover:bg-primary-container/10"
+                          >
+                            Details
                           </Link>
                         ) : isExternal && event.externalRegistrationUrl ? (
                           <a
@@ -598,20 +596,18 @@ export default function EventsPage() {
                 a starting gun.
               </h2>
               <p className="mt-6 text-xl leading-9 text-white/85">
-                Get notified about early-bird registrations, limited edition gear
-                drops and exclusive community events.
+                Create a free runner profile to register for events and
+                challenges and track your runs.
               </p>
             </div>
 
             <div className="flex w-full max-w-[520px] flex-col gap-4 sm:flex-row lg:justify-end">
-              <input
-                type="email"
-                placeholder="runner@email.com"
-                className="h-16 flex-1 rounded-2xl border border-white/30 bg-white/20 px-6 text-lg text-white placeholder:text-white/60 outline-none backdrop-blur-md"
-              />
-              <button className="h-16 rounded-2xl bg-white px-10 font-bold text-[#ab3500] transition hover:bg-gray-100">
-                Subscribe
-              </button>
+              <Link
+                href="/register"
+                className="flex h-16 items-center justify-center rounded-2xl bg-white px-10 font-bold text-[#ab3500] transition hover:bg-gray-100"
+              >
+                Join the Community
+              </Link>
             </div>
           </div>
         </div>
@@ -675,7 +671,7 @@ export default function EventsPage() {
                 T-Shirt Size
               </label>
               <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                {(["XS", "S", "M", "L", "XL", "XXL"] as TshirtSize[]).map(
+                {TSHIRT_SIZES.map(
                   (size) => (
                     <button
                       key={size}

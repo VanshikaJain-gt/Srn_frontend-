@@ -35,6 +35,8 @@ function getStatusLabel(status: Challenge["status"]) {
       return "Results Pending";
     case "COMPLETED":
       return "Completed";
+    case "CANCELLED":
+      return "Cancelled";
     default:
       return status;
   }

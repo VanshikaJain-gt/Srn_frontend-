@@ -1,4 +1,12 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient, PageResponse } from "@/lib/api-client";
+
+export type { PageResponse };
+
+/** Backend enum PaymentMode. */
+export type PaymentMode = "RAZORPAY" | "UPI" | "PAYTM" | "CASH" | "OTHER";
+
+/** Backend enum PaymentStatusEnum. */
+export type PaymentRecordStatus = "SUBMITTED" | "VERIFIED" | "REJECTED" | "REFUNDED";
 
 export interface CreatePaymentOrderResponse {
   razorpayOrderId: string;
@@ -19,8 +27,8 @@ export interface PaymentResponse {
   id: number;
   registrationId: number;
   amount: number;
-  mode: string;
-  status: string;
+  mode: PaymentMode;
+  status: PaymentRecordStatus;
   txnReference?: string | null;
   verifiedAt?: string | null;
   refundedAt?: string | null;
@@ -28,17 +36,9 @@ export interface PaymentResponse {
   refundNote?: string | null;
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  page: number;
-  size: number;
-}
-
 export interface ManualPaymentRequest {
   registrationId: number;
-  mode: string;
+  mode: PaymentMode;
   txnReference?: string;
   screenshotUrl?: string;
 }
@@ -65,6 +65,7 @@ export async function verifyPayment(
   );
 }
 
+/** GET /api/payments/me returns a plain list. */
 export async function getMyPayments(): Promise<PaymentResponse[]> {
   return apiClient.get<PaymentResponse[]>("/api/payments/me");
 }

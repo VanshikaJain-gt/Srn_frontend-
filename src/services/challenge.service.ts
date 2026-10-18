@@ -4,7 +4,8 @@ export type ChallengeStatus =
   | "UPCOMING"
   | "ACTIVE"
   | "RESULTS_PENDING"
-  | "COMPLETED";
+  | "COMPLETED"
+  | "CANCELLED";
 
 export type CategoryType =
   | "DISTANCE_TARGET"
@@ -39,6 +40,7 @@ export interface Challenge {
   categories: ChallengeCategory[];
 }
 
+/** Without query params the backend returns a plain list (not a page). */
 export async function getChallenges(): Promise<Challenge[]> {
   return apiClient.get<Challenge[]>("/api/challenges");
 }

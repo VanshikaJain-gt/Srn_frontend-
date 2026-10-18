@@ -42,10 +42,13 @@ export interface WinnerRequest {
  * for a challenge.
  */
 export async function getChallengeLeaderboard(
-  challengeId: number
+  challengeId: number,
+  categoryId?: number
 ): Promise<LeaderboardEntry[]> {
+  const query = categoryId ? `?categoryId=${categoryId}` : "";
+
   return apiClient.get<LeaderboardEntry[]>(
-    `/api/challenges/${challengeId}/leaderboard`
+    `/api/challenges/${challengeId}/leaderboard${query}`
   );
 }
 

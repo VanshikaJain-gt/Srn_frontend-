@@ -1,44 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ApiError, apiClient } from "@/lib/api-client";
-import { cancelAdminRegistration } from "@/services/registration.service";
+import { ApiError } from "@/lib/api-client";
+import {
+  cancelAdminRegistration,
+  getAdminRegistrations,
+  RegistrationResponse,
+} from "@/services/registration.service";
 import { refundRegistration } from "@/services/payment.service";
 
-type AdminRegistration = {
-  id: number;
-  userId?: number | null;
-  userName?: string | null;
-  userEmail?: string | null;
-  userPhone?: string | null;
-  eventId?: number | null;
-  eventTitle?: string | null;
-  challengeId?: number | null;
-  challengeTitle?: string | null;
-  registrationStatus?: string | null;
-  paymentStatus?: string | null;
-  feePaid?: number | null;
-  registrationFee?: number | null;
-  registeredAt?: string | null;
-  registrationSource?: string | null;
-  tshirtSize?: string | null;
-  [key: string]: unknown;
-};
-
-type RegistrationPageResponse = {
-  content?: AdminRegistration[];
-  totalElements?: number;
-  totalPages?: number;
-  page?: number;
-  size?: number;
-};
-
-function normalizeRegistrations(
-  response: AdminRegistration[] | RegistrationPageResponse
-): AdminRegistration[] {
-  if (Array.isArray(response)) return response;
-  return Array.isArray(response?.content) ? response.content : [];
-}
+// The backend admin RegistrationResponse carries no user details
+// (no user id / name / email), so the list identifies rows by registration.
+type AdminRegistration = RegistrationResponse;
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -67,18 +40,13 @@ function getTitle(registration: AdminRegistration) {
 }
 
 function getParticipantName(registration: AdminRegistration) {
-  return (
-    registration.userName ||
-    (typeof registration["name"] === "string"
-      ? registration["name"]
-      : null) ||
-    (typeof registration["user"] === "object" &&
-    registration["user"] &&
-    "name" in (registration["user"] as Record<string, unknown>)
-      ? String((registration["user"] as Record<string, unknown>).name)
-      : null) ||
-    `User #${registration.userId ?? "-"}`
-  );
+  return `Registration #${registration.id}`;
+}
+
+function getSourceLabel(registration: AdminRegistration) {
+  return registration.registrationSource === "ADMIN_MANUAL"
+    ? "Added by admin"
+    : "Self-registered";
 }
 
 function statusClass(status?: string | null) {
@@ -118,11 +86,9 @@ export default function AdminRegistrationsPage() {
       setLoading(true);
       setError("");
 
-      const response = await apiClient.get<
-        AdminRegistration[] | RegistrationPageResponse
-      >("/api/admin/registrations");
+      const response = await getAdminRegistrations();
 
-      setRegistrations(normalizeRegistrations(response));
+      setRegistrations(response.content ?? []);
     } catch (err) {
       setRegistrations([]);
 
@@ -259,9 +225,7 @@ export default function AdminRegistrationsPage() {
 
       const searchable = [
         registration.id,
-        registration.userId,
         getParticipantName(registration),
-        registration.userEmail,
         registration.eventTitle,
         registration.challengeTitle,
         registration.eventId,
@@ -397,7 +361,7 @@ export default function AdminRegistrationsPage() {
                           {getParticipantName(registration)}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {registration.userEmail || `User #${registration.userId ?? "-"}`}
+                          {getSourceLabel(registration)}
                         </div>
                       </td>
 
@@ -416,7 +380,7 @@ export default function AdminRegistrationsPage() {
 
                       <td className="px-3 py-5 font-semibold text-gray-800">
                         {formatMoney(
-                          registration.feePaid ?? registration.registrationFee
+                          registration.feePaid
                         )}
                       </td>
 
@@ -543,30 +507,12 @@ export default function AdminRegistrationsPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                  User ID
-                </p>
-                <p className="mt-2 font-semibold text-gray-900">
-                  {selected.userId ?? "-"}
-                </p>
-              </div>
-
               <div className="min-w-0 rounded-xl bg-gray-50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Email
-                </p>
-                <p className="mt-2 break-all font-semibold text-gray-900">
-                  {selected.userEmail || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Phone
+                  Source
                 </p>
                 <p className="mt-2 font-semibold text-gray-900">
-                  {selected.userPhone || "-"}
+                  {getSourceLabel(selected)}
                 </p>
               </div>
 

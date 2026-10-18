@@ -6,6 +6,7 @@ import {
   createManualPayment,
   getAdminPayments,
   refundPayment,
+  PaymentMode,
   PaymentResponse,
 } from "@/services/payment.service";
 
@@ -17,7 +18,8 @@ const STATUS_OPTIONS = [
   "REFUNDED",
 ];
 
-const MODE_OPTIONS = [
+// Offline modes an admin can record manually (RAZORPAY is recorded by checkout).
+const MODE_OPTIONS: PaymentMode[] = [
   "UPI",
   "PAYTM",
   "CASH",
@@ -92,7 +94,7 @@ export default function AdminPaymentsPage() {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualRegistrationId, setManualRegistrationId] =
     useState("");
-  const [manualMode, setManualMode] = useState("UPI");
+  const [manualMode, setManualMode] = useState<PaymentMode>("UPI");
   const [manualTxnReference, setManualTxnReference] =
     useState("");
   const [manualScreenshotUrl, setManualScreenshotUrl] =
@@ -618,7 +620,7 @@ export default function AdminPaymentsPage() {
               <select
                 value={manualMode}
                 onChange={(event) =>
-                  setManualMode(event.target.value)
+                  setManualMode(event.target.value as PaymentMode)
                 }
                 className="mt-2 w-full rounded-xl border px-4 py-3"
               >

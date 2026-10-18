@@ -1,11 +1,16 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
 } from "@/lib/api-client";
-import { getMyRegistrations, RegistrationResponse } from "@/services/registration.service";
+import {
+  getMyRegistrations,
+  PARTICIPATION_ALLOWED,
+  RegistrationResponse,
+} from "@/services/registration.service";
 import {
   ActivityResponse,
   createManualActivity,
@@ -23,6 +28,23 @@ function formatDate(value?: string | null) {
     month: "short",
     year: "numeric",
   });
+}
+
+/** Today's date in the browser's time zone (toISOString would give the UTC date). */
+function localToday() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+// Backend rule: only paid or free registrations may submit activities.
+function canSubmitFor(registration: RegistrationResponse) {
+  return (
+    registration.challengeId != null &&
+    registration.registrationStatus === "ACTIVE" &&
+    PARTICIPATION_ALLOWED.includes(registration.paymentStatus)
+  );
 }
 
 function statusClass(status?: string | null) {
@@ -47,19 +69,23 @@ export default function ActivitiesPage() {
   const [success, setSuccess] = useState("");
 
   const [registrationId, setRegistrationId] = useState("");
-  const [activityDate, setActivityDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [activityDate, setActivityDate] = useState(localToday);
   const [distanceKm, setDistanceKm] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [caption, setCaption] = useState("");
 
   const activeChallengeRegistrations = useMemo(
+    () => registrations.filter(canSubmitFor),
+    [registrations]
+  );
+
+  const unpaidChallengeRegistrations = useMemo(
     () =>
       registrations.filter(
         (registration) =>
-          registration.challengeId &&
-          registration.registrationStatus === "ACTIVE"
+          registration.challengeId != null &&
+          registration.registrationStatus === "ACTIVE" &&
+          registration.paymentStatus === "PENDING"
       ),
     [registrations]
   );
@@ -78,11 +104,7 @@ export default function ActivitiesPage() {
       setRegistrations(registrationData);
 
       if (!registrationId) {
-        const firstActive = registrationData.find(
-          (registration) =>
-            registration.challengeId &&
-            registration.registrationStatus === "ACTIVE"
-        );
+        const firstActive = registrationData.find(canSubmitFor);
         if (firstActive) {
           setRegistrationId(String(firstActive.id));
         }
@@ -109,6 +131,7 @@ export default function ActivitiesPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
     setError("");
     setSuccess("");
 
@@ -237,6 +260,7 @@ export default function ActivitiesPage() {
               <Field label="Activity Date">
                 <input
                   type="date"
+                  max={localToday()}
                   value={activityDate}
                   onChange={(event) => setActivityDate(event.target.value)}
                   className="w-full rounded-xl border border-[#e1bfb5] px-4 py-3 text-sm outline-none focus:border-[#ab3500]"
@@ -271,7 +295,7 @@ export default function ActivitiesPage() {
                 <textarea
                   value={caption}
                   onChange={(event) => setCaption(event.target.value)}
-                  maxLength={500}
+                  maxLength={1000}
                   rows={3}
                   placeholder="e.g. Morning 5K run at the park"
                   className="w-full resize-none rounded-xl border border-[#e1bfb5] px-4 py-3 text-sm outline-none focus:border-[#ab3500]"
@@ -280,8 +304,29 @@ export default function ActivitiesPage() {
 
               {!activeChallengeRegistrations.length && !loading && (
                 <div className="rounded-xl bg-[#fff1ed] px-4 py-3 text-sm text-[#594139]">
-                  You need an active challenge registration before submitting
-                  an activity.
+                  {unpaidChallengeRegistrations.length > 0 ? (
+                    <>
+                      Complete the payment for your challenge registration
+                      before submitting an activity.{" "}
+                      <Link
+                        href="/dashboard/registrations"
+                        className="font-bold text-[#ab3500] underline"
+                      >
+                        Go to My Registrations
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      You need an active challenge registration before
+                      submitting an activity.{" "}
+                      <Link
+                        href="/challenges"
+                        className="font-bold text-[#ab3500] underline"
+                      >
+                        Browse challenges
+                      </Link>
+                    </>
+                  )}
                 </div>
               )}
 

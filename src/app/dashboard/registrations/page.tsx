@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-import { ApiError } from "@/lib/api-client";
+import { ApiError, getErrorMessage } from "@/lib/api-client";
 
 import {
+  cancelMyRegistration,
   getMyRegistrations,
   RegistrationResponse,
   PaymentStatus,
@@ -49,19 +50,24 @@ interface RazorpayInstance {
   open: () => void;
 }
 
-// The backend response includes these fields, while the shared
-// RegistrationResponse type is older and does not declare all of them yet.
-// Keep the page aligned with the real /api/users/me registration payload
-// without changing the existing service implementation.
-type RegistrationView = Omit<
-  RegistrationResponse,
-  "feePaid" | "registeredAt" | "registrationSource" | "registrationStatus"
-> & {
-  feePaid?: number | null;
-  registeredAt?: string | null;
-  registrationSource?: string | null;
-  registrationStatus?: string | null;
-};
+type RegistrationView = RegistrationResponse;
+
+function isCancelled(registration: RegistrationView) {
+  return registration.registrationStatus === "CANCELLED";
+}
+
+function canPay(registration: RegistrationView) {
+  return !isCancelled(registration) && registration.paymentStatus === "PENDING";
+}
+
+// Backend rule: paid/verified registrations must be refunded by an admin first.
+function canCancel(registration: RegistrationView) {
+  return (
+    !isCancelled(registration) &&
+    registration.paymentStatus !== "PAID" &&
+    registration.paymentStatus !== "VERIFIED"
+  );
+}
 
 function getPaymentLabel(status: PaymentStatus) {
   switch (status) {
@@ -73,6 +79,8 @@ function getPaymentLabel(status: PaymentStatus) {
       return "Paid";
     case "VERIFIED":
       return "Verified";
+    case "REFUNDED":
+      return "Refunded";
     default:
       return status;
   }
@@ -88,6 +96,8 @@ function getPaymentClasses(status: PaymentStatus) {
       return "bg-green-100 text-green-700";
     case "VERIFIED":
       return "bg-blue-100 text-blue-700";
+    case "REFUNDED":
+      return "bg-purple-100 text-purple-700";
     default:
       return "bg-gray-100 text-gray-700";
   }
@@ -208,6 +218,9 @@ export default function RegistrationsPage() {
 
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [cancelMessage, setCancelMessage] = useState("");
+
   async function loadRegistrations() {
     try {
       setLoading(true);
@@ -253,11 +266,43 @@ export default function RegistrationsPage() {
     [registrations]
   );
 
-  const pendingPayments = registrations.filter(
-    (registration) => registration.paymentStatus === "PENDING"
-  ).length;
+  const pendingPayments = registrations.filter(canPay).length;
+
+  async function handleCancel(registration: RegistrationView) {
+    if (cancellingId != null) return;
+
+    const confirmed = window.confirm(
+      `Cancel your registration for "${getRegistrationTitle(registration)}"?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCancellingId(registration.id);
+      setError("");
+      setCancelMessage("");
+
+      await cancelMyRegistration(registration.id);
+
+      setCancelMessage(
+        `Registration #${registration.id} was cancelled. You can register again from the challenge or event page.`
+      );
+      setSelectedRegistration(null);
+      await loadRegistrations();
+    } catch (err) {
+      setError(getErrorMessage(err, "Unable to cancel registration."));
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   async function handlePayNow(registrationId: number) {
+    if (paymentLoadingId != null) return;
+
+    // Stays locked while the Razorpay popup is open, so a second click cannot
+    // create a second order. Released on success, failure or popup close.
+    let checkoutOpened = false;
+
     try {
       setPaymentLoadingId(registrationId);
       setError("");
@@ -286,7 +331,7 @@ export default function RegistrationsPage() {
         amount: order.amountInPaise,
         currency: order.currency,
         name: "Sunrise Runners Network",
-        description: "Challenge Registration Payment",
+        description: `Registration #${registrationId} payment`,
         order_id: order.razorpayOrderId,
 
         handler: async (response: RazorpaySuccessResponse) => {
@@ -346,6 +391,7 @@ export default function RegistrationsPage() {
       });
 
       razorpay.open();
+      checkoutOpened = true;
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) {
@@ -359,7 +405,9 @@ export default function RegistrationsPage() {
         setError("Unable to start payment.");
       }
     } finally {
-      setPaymentLoadingId(null);
+      if (!checkoutOpened) {
+        setPaymentLoadingId(null);
+      }
     }
   }
 
@@ -406,6 +454,12 @@ export default function RegistrationsPage() {
             >
               Try again
             </button>
+          </div>
+        )}
+
+        {cancelMessage && (
+          <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 px-5 py-4">
+            <p className="text-sm font-bold text-green-800">{cancelMessage}</p>
           </div>
         )}
 
@@ -574,7 +628,9 @@ export default function RegistrationsPage() {
                     registration={registration}
                     type="challenge"
                     paymentLoadingId={paymentLoadingId}
+                    cancellingId={cancellingId}
                     onPayNow={handlePayNow}
+                    onCancel={handleCancel}
                     onViewDetails={setSelectedRegistration}
                   />
                 ))}
@@ -604,7 +660,9 @@ export default function RegistrationsPage() {
                     registration={registration}
                     type="event"
                     paymentLoadingId={paymentLoadingId}
+                    cancellingId={cancellingId}
                     onPayNow={handlePayNow}
+                    onCancel={handleCancel}
                     onViewDetails={setSelectedRegistration}
                   />
                 ))}
@@ -627,21 +685,31 @@ function RegistrationCard({
   registration,
   type,
   paymentLoadingId,
+  cancellingId,
   onPayNow,
+  onCancel,
   onViewDetails,
 }: {
   registration: RegistrationView;
   type: "challenge" | "event";
   paymentLoadingId: number | null;
+  cancellingId: number | null;
   onPayNow: (registrationId: number) => void;
+  onCancel: (registration: RegistrationView) => void;
   onViewDetails: (registration: RegistrationView) => void;
 }) {
   const title = getRegistrationTitle(registration);
 
   const paymentLoading = paymentLoadingId === registration.id;
+  const cancelling = cancellingId === registration.id;
+  const busy = paymentLoadingId != null || cancellingId != null;
 
   return (
-    <div className="rounded-3xl border border-orange-100 bg-white p-6 shadow-sm">
+    <div
+      className={`rounded-3xl border border-orange-100 bg-white p-6 shadow-sm ${
+        isCancelled(registration) ? "opacity-70" : ""
+      }`}
+    >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         {/* Main info */}
         <div className="flex items-start gap-4">
@@ -681,14 +749,20 @@ function RegistrationCard({
         </div>
 
         {/* Status + action */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div
-            className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold ${getPaymentClasses(
-              registration.paymentStatus
-            )}`}
-          >
-            {getPaymentLabel(registration.paymentStatus)}
-          </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          {isCancelled(registration) ? (
+            <div className="inline-flex items-center justify-center rounded-full bg-red-100 px-4 py-2 text-xs font-bold text-red-700">
+              Cancelled
+            </div>
+          ) : (
+            <div
+              className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold ${getPaymentClasses(
+                registration.paymentStatus
+              )}`}
+            >
+              {getPaymentLabel(registration.paymentStatus)}
+            </div>
+          )}
 
           <button
             type="button"
@@ -701,10 +775,21 @@ function RegistrationCard({
             View Details
           </button>
 
-          {registration.paymentStatus === "PENDING" && (
+          {canCancel(registration) && (
             <button
               type="button"
-              disabled={paymentLoading}
+              disabled={busy}
+              onClick={() => onCancel(registration)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {cancelling ? "Cancelling..." : "Cancel"}
+            </button>
+          )}
+
+          {canPay(registration) && (
+            <button
+              type="button"
+              disabled={busy}
               onClick={() => onPayNow(registration.id)}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -736,7 +821,7 @@ function RegistrationCard({
         />
 
         <InfoItem
-          label="Amount"
+          label="Fee"
           value={
             registration.feePaid != null
               ? `₹${Number(registration.feePaid).toFixed(2)}`
@@ -825,7 +910,7 @@ function RegistrationDetailsModal({
             />
 
             <InfoItem
-              label="Amount Paid"
+              label="Fee"
               value={
                 registration.feePaid != null
                   ? `₹${Number(registration.feePaid).toFixed(2)}`

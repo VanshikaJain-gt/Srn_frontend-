@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getErrorMessage } from "@/lib/api-client";
+import { EventResponse, getEvents } from "@/services/event.service";
 import {
   createGallery,
   deleteGallery,
@@ -27,6 +29,8 @@ export default function AdminGalleryPage() {
 
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [events, setEvents] = useState<EventResponse[]>([]);
 
   async function loadGallery() {
     try {
@@ -36,8 +40,7 @@ export default function AdminGalleryPage() {
       const data = await getAdminGallery();
       setGallery(data);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load gallery.");
+      setError(getErrorMessage(err, "Failed to load gallery."));
     } finally {
       setLoading(false);
     }
@@ -45,7 +48,18 @@ export default function AdminGalleryPage() {
 
   useEffect(() => {
     loadGallery();
+
+    // Event list only feeds the optional "linked event" dropdown.
+    getEvents()
+      .then(setEvents)
+      .catch(() => setEvents([]));
   }, []);
+
+  function eventLabel(eventId: number | null) {
+    if (eventId == null) return "No event";
+    const event = events.find((item) => item.id === eventId);
+    return event ? event.title : `Event #${eventId}`;
+  }
 
   function handleChange(
     e: React.ChangeEvent<
@@ -99,33 +113,19 @@ export default function AdminGalleryPage() {
     setError("");
     setSuccess("");
 
-    const eventId = Number(form.eventId);
+    if (saving) return;
 
-    if (!form.eventId || Number.isNaN(eventId)) {
-      setError("Event ID is required.");
-      return;
-    }
-
+    // Backend GalleryRequest: only imageUrl is required.
     if (!form.imageUrl.trim()) {
       setError("Image URL is required.");
       return;
     }
 
-    if (!form.caption.trim()) {
-      setError("Caption is required.");
-      return;
-    }
-
-    if (!form.category.trim()) {
-      setError("Category is required.");
-      return;
-    }
-
     const payload = {
-      eventId,
+      eventId: form.eventId ? Number(form.eventId) : null,
       imageUrl: form.imageUrl.trim(),
-      caption: form.caption.trim(),
-      category: form.category.trim(),
+      caption: form.caption.trim() || null,
+      category: form.category.trim() || null,
       published: form.published,
     };
 
@@ -143,11 +143,13 @@ export default function AdminGalleryPage() {
       resetForm();
       await loadGallery();
     } catch (err) {
-      console.error(err);
       setError(
-        editingId !== null
-          ? "Failed to update gallery item."
-          : "Failed to create gallery item."
+        getErrorMessage(
+          err,
+          editingId !== null
+            ? "Failed to update gallery item."
+            : "Failed to create gallery item."
+        )
       );
     } finally {
       setSaving(false);
@@ -159,11 +161,12 @@ export default function AdminGalleryPage() {
       "Are you sure you want to delete this gallery item?"
     );
 
-    if (!confirmed) {
+    if (!confirmed || deletingId != null) {
       return;
     }
 
     try {
+      setDeletingId(id);
       setError("");
       setSuccess("");
 
@@ -173,8 +176,9 @@ export default function AdminGalleryPage() {
 
       await loadGallery();
     } catch (err) {
-      console.error(err);
-      setError("Failed to delete gallery item.");
+      setError(getErrorMessage(err, "Failed to delete gallery item."));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -246,19 +250,26 @@ export default function AdminGalleryPage() {
                   htmlFor="eventId"
                   className="mb-2 block text-sm font-bold uppercase tracking-wider text-slate-600"
                 >
-                  Event ID
+                  Event (optional)
                 </label>
 
-                <input
+                <select
                   id="eventId"
                   name="eventId"
-                  type="number"
-                  min="1"
                   value={form.eventId}
                   onChange={handleChange}
-                  placeholder="e.g. 1"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-                />
+                >
+                  <option value="">No event</option>
+                  {form.eventId && !events.some((event) => String(event.id) === form.eventId) && (
+                    <option value={form.eventId}>Event #{form.eventId}</option>
+                  )}
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.title}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Category */}
@@ -450,7 +461,7 @@ export default function AdminGalleryPage() {
                       </span>
 
                       <span className="text-xs text-slate-400">
-                        Event #{item.eventId}
+                        {eventLabel(item.eventId)}
                       </span>
                     </div>
 
@@ -470,9 +481,10 @@ export default function AdminGalleryPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(item.id)}
-                        className="flex-1 rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50"
+                        disabled={deletingId != null}
+                        className="flex-1 rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Delete
+                        {deletingId === item.id ? "Deleting..." : "Delete"}
                       </button>
                     </div>
                   </div>

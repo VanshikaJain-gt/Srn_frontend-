@@ -33,7 +33,7 @@ export default function AdminActivitiesPage() {
     try {
       setLoading(true);
       setError("");
-      setActivities(await getAdminActivities());
+      setActivities((await getAdminActivities()).content ?? []);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError("Admin session expired. Please login again.");

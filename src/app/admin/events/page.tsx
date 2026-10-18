@@ -365,7 +365,7 @@ export default function AdminEventsPage() {
             />
             <select
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onChange={(event) => setStatusFilter(event.target.value as EventStatus | "ALL")}
               className="rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:border-primary"
             >
               <option value="ALL">All statuses</option>

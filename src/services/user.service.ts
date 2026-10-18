@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
-export type UserRole = "USER" | "ADMIN" | string;
-export type AuthProvider = "LOCAL" | "GOOGLE" | string;
+export type UserRole = "USER" | "ADMIN";
+export type AuthProvider = "LOCAL" | "GOOGLE";
 
 export interface AdminUserResponse {
   id: number;
@@ -22,24 +22,9 @@ export interface AdminUserListResponse {
   users: AdminUserResponse[];
 }
 
+/** Backend returns { totalUsers, users } (not a page). */
 export async function getAdminUsers(): Promise<AdminUserListResponse> {
-  const response = await apiClient.get<AdminUserListResponse | AdminUserResponse[]>(
-    "/api/admin/users"
-  );
-
-  // Backend currently returns { totalUsers, users }.
-  // Keep this fallback so the page remains tolerant if the API ever returns a plain array.
-  if (Array.isArray(response)) {
-    return {
-      totalUsers: response.length,
-      users: response,
-    };
-  }
-
-  return {
-    totalUsers: Number(response?.totalUsers ?? response?.users?.length ?? 0),
-    users: Array.isArray(response?.users) ? response.users : [],
-  };
+  return apiClient.get<AdminUserListResponse>("/api/admin/users");
 }
 
 export async function getAdminUserById(id: number): Promise<AdminUserResponse> {

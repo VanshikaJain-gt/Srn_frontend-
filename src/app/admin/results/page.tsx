@@ -1,46 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { apiClient, ApiError } from "@/lib/api-client";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type AwardType =
-  | "OVERALL_WINNER"
-  | "CATEGORY_WINNER"
-  | "RUNNER_UP"
-  | "SPECIAL_AWARD"
-  | string;
+import { getErrorMessage } from "@/lib/api-client";
+import { Challenge, getChallenges } from "@/services/challenge.service";
+import {
+  AwardType,
+  createWinner,
+  deleteWinner,
+  getChallengeLeaderboard,
+  getChallengeWinners,
+  LeaderboardEntry,
+  WinnerResponse,
+} from "@/services/result.service";
 
-interface WinnerResponse {
-  id: number;
-  challengeId: number;
-  categoryId?: number | null;
-  categoryName?: string | null;
-  userId: number;
-  name?: string | null;
-  profilePhotoUrl?: string | null;
-  rank: number;
-  awardType: AwardType;
-  awardNote?: string | null;
-  announcedAt?: string | null;
-}
+/** Backend enum AwardType. */
+const AWARD_TYPES: { value: AwardType; label: string }[] = [
+  { value: "CATEGORY_WINNER", label: "Category Winner" },
+  { value: "FINISHER", label: "Finisher" },
+  { value: "SPECIAL_RECOGNITION", label: "Special Recognition" },
+];
 
-interface CreateWinnerRequest {
-  challengeId: number;
-  categoryId?: number | null;
-  userId: number;
-  rank: number;
-  awardType: string;
-  awardNote?: string | null;
-}
+const EMPTY_FORM = {
+  userId: "",
+  rank: "",
+  awardType: "CATEGORY_WINNER" as AwardType,
+  awardNote: "",
+};
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
 
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -49,388 +41,267 @@ function formatDate(value?: string | null) {
   });
 }
 
+function awardLabel(type: AwardType) {
+  return AWARD_TYPES.find((item) => item.value === type)?.label ?? type;
+}
+
 export default function AdminResultsPage() {
-  // IMPORTANT:
-  // Keep this as STRING so the input never becomes NaN / locked.
-  const [challengeIdInput, setChallengeIdInput] = useState("");
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [challengeId, setChallengeId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
 
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [winners, setWinners] = useState<WinnerResponse[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
 
-  const [loadingWinners, setLoadingWinners] = useState(false);
+  const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [loadingResults, setLoadingResults] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // Declare winner form
-  const [form, setForm] = useState({
-    challengeId: "",
-    categoryId: "",
-    userId: "",
-    rank: "1",
-    awardType: "CATEGORY_WINNER",
-    awardNote: "",
-  });
+  const selectedChallenge = useMemo(
+    () => challenges.find((challenge) => String(challenge.id) === challengeId) ?? null,
+    [challenges, challengeId]
+  );
 
-  function handleChallengeIdChange(
-    event: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const value = event.target.value;
+  useEffect(() => {
+    getChallenges()
+      .then((data) => {
+        setChallenges(data);
+        if (data.length > 0) setChallengeId(String(data[0].id));
+      })
+      .catch((err) => setError(getErrorMessage(err, "Unable to load challenges.")))
+      .finally(() => setLoadingChallenges(false));
+  }, []);
 
-    // Only allow digits
-    if (!/^\d*$/.test(value)) {
-      return;
-    }
-
-    setChallengeIdInput(value);
-  }
-
-  async function loadWinners() {
-    setError("");
-    setHasSearched(false);
-
-    const trimmed = challengeIdInput.trim();
-
-    if (!trimmed) {
-      setError("Challenge ID is required.");
-      return;
-    }
-
-    const challengeId = Number(trimmed);
-
-    if (!Number.isInteger(challengeId) || challengeId <= 0) {
-      setError("Please enter a valid Challenge ID.");
+  async function loadResults(id: string, category: string) {
+    if (!id) {
+      setLeaderboard([]);
+      setWinners([]);
       return;
     }
 
     try {
-      setLoadingWinners(true);
+      setLoadingResults(true);
+      setError("");
 
-      const response = await apiClient.get<WinnerResponse[]>(
-        `/api/challenges/${challengeId}/winners`
-      );
+      const [leaderboardData, winnersData] = await Promise.all([
+        getChallengeLeaderboard(Number(id), category ? Number(category) : undefined),
+        getChallengeWinners(Number(id)),
+      ]);
 
-      setWinners(Array.isArray(response) ? response : []);
-      setHasSearched(true);
+      setLeaderboard(leaderboardData);
+      setWinners(winnersData);
     } catch (err) {
+      setLeaderboard([]);
       setWinners([]);
-      setHasSearched(true);
-
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Unable to load winners.");
-      }
+      setError(getErrorMessage(err, "Unable to load results."));
     } finally {
-      setLoadingWinners(false);
+      setLoadingResults(false);
     }
   }
 
-  function handleFormChange(
-    event:
-      | React.ChangeEvent<HTMLInputElement>
-      | React.ChangeEvent<HTMLSelectElement>
-      | React.ChangeEvent<HTMLTextAreaElement>
-  ) {
-    const { name, value } = event.target;
+  useEffect(() => {
+    loadResults(challengeId, categoryId);
+  }, [challengeId, categoryId]);
 
+  function pickRunner(entry: LeaderboardEntry) {
     setForm((previous) => ({
       ...previous,
-      [name]: value,
+      userId: String(entry.userId),
+      rank: String(entry.rank),
     }));
+    setSuccess("");
+    document.getElementById("declare-winner")?.scrollIntoView({ behavior: "smooth" });
   }
 
-  async function handleCreateWinner(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
+  async function handleCreateWinner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
 
     setError("");
+    setSuccess("");
 
-    const challengeId = Number(form.challengeId);
     const userId = Number(form.userId);
-    const rank = Number(form.rank);
+    const rank = form.rank.trim() ? Number(form.rank) : null;
 
-    const categoryId = form.categoryId.trim()
-      ? Number(form.categoryId)
-      : null;
-
-    if (!Number.isInteger(challengeId) || challengeId <= 0) {
-      setError("Valid Challenge ID is required.");
+    if (!selectedChallenge) {
+      setError("Select a challenge first.");
       return;
     }
 
     if (!Number.isInteger(userId) || userId <= 0) {
-      setError("Valid User ID is required.");
+      setError("Pick a runner from the leaderboard or enter a valid User ID.");
       return;
     }
 
-    if (!Number.isInteger(rank) || rank <= 0) {
-      setError("Valid Rank is required.");
+    if (rank !== null && (!Number.isInteger(rank) || rank <= 0)) {
+      setError("Rank must be a positive whole number.");
       return;
     }
-
-    if (
-      categoryId !== null &&
-      (!Number.isInteger(categoryId) || categoryId <= 0)
-    ) {
-      setError("Category ID must be a valid number.");
-      return;
-    }
-
-    const payload: CreateWinnerRequest = {
-      challengeId,
-      categoryId,
-      userId,
-      rank,
-      awardType: form.awardType,
-      awardNote: form.awardNote.trim() || null,
-    };
 
     try {
       setSubmitting(true);
 
-      await apiClient.post<WinnerResponse>(
-        "/api/admin/winners",
-        payload
-      );
+      await createWinner({
+        challengeId: selectedChallenge.id,
+        categoryId: categoryId ? Number(categoryId) : null,
+        userId,
+        rank,
+        awardType: form.awardType,
+        awardNote: form.awardNote.trim() || null,
+      });
 
-      // After successful creation, automatically load winners
-      setChallengeIdInput(String(challengeId));
-
-      setForm((previous) => ({
-        ...previous,
-        challengeId: String(challengeId),
-        userId: "",
-        awardNote: "",
-      }));
-
-      await loadWinners();
+      setSuccess("Winner declared.");
+      setForm(EMPTY_FORM);
+      await loadResults(challengeId, categoryId);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Unable to declare winner.");
-      }
+      setError(getErrorMessage(err, "Unable to declare winner."));
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleDeleteWinner(id: number) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this winner?"
-    );
-
-    if (!confirmed) {
-      return;
-    }
+  async function handleDeleteWinner(winner: WinnerResponse) {
+    if (deletingId != null) return;
+    if (!window.confirm(`Remove ${winner.name} from the winners list?`)) return;
 
     try {
+      setDeletingId(winner.id);
       setError("");
-
-      await apiClient.delete(`/api/admin/winners/${id}`);
-
-      // Refresh current challenge results
-      if (challengeIdInput.trim()) {
-        await loadWinners();
-      }
+      setSuccess("");
+      await deleteWinner(winner.id);
+      await loadResults(challengeId, categoryId);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Unable to delete winner.");
-      }
+      setError(getErrorMessage(err, "Unable to delete winner."));
+    } finally {
+      setDeletingId(null);
     }
   }
 
-  function useChallengeForWinnerForm() {
-    if (!challengeIdInput.trim()) {
-      setError("Enter a Challenge ID first.");
-      return;
-    }
-
-    setForm((previous) => ({
-      ...previous,
-      challengeId: challengeIdInput,
-    }));
-
-    window.scrollTo({
-      top: document.body.scrollHeight,
-      behavior: "smooth",
-    });
-  }
+  const inputClass =
+    "h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:opacity-60";
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">
-            Management
-          </p>
-
-          <h1 className="mt-2 text-3xl font-black text-gray-950">
-            Results / Winners
-          </h1>
-
-          <p className="mt-2 text-sm text-gray-500">
-            Manage challenge winners and publish final results.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={loadWinners}
-          disabled={loadingWinners}
-          className="rounded-xl border border-orange-200 bg-white px-5 py-3 text-sm font-bold text-orange-700 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loadingWinners ? "Loading..." : "Refresh Results"}
-        </button>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">
+          Management
+        </p>
+        <h1 className="mt-2 text-3xl font-black text-gray-950">Results & Winners</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Review the verified-distance leaderboard and declare official winners.
+        </p>
       </div>
 
-      {/* Error */}
+      <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600">
+              Challenge
+            </span>
+            <select
+              value={challengeId}
+              onChange={(e) => {
+                setChallengeId(e.target.value);
+                setCategoryId("");
+                setSuccess("");
+              }}
+              disabled={loadingChallenges || challenges.length === 0}
+              className={inputClass}
+            >
+              {loadingChallenges ? (
+                <option value="">Loading challenges...</option>
+              ) : challenges.length === 0 ? (
+                <option value="">No challenges available</option>
+              ) : (
+                challenges.map((challenge) => (
+                  <option key={challenge.id} value={challenge.id}>
+                    {challenge.title} ({challenge.status})
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600">
+              Category
+            </span>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              disabled={!selectedChallenge}
+              className={inputClass}
+            >
+              <option value="">All categories</option>
+              {selectedChallenge?.categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
           {error}
         </div>
       )}
 
-      {/* VIEW RESULTS */}
-      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <div>
-          <h2 className="text-xl font-black text-gray-950">
-            View Challenge Results
-          </h2>
+      {success && (
+        <div className="rounded-2xl border border-green-200 bg-green-50 px-5 py-4 text-sm font-semibold text-green-700">
+          {success}
+        </div>
+      )}
 
-          <p className="mt-2 text-sm text-gray-500">
-            Enter a challenge ID to load its published winners.
+      <div className="grid gap-8 xl:grid-cols-2">
+        <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-black text-gray-950">Leaderboard</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Verified distance only. Pick a runner to prefill the winner form.
           </p>
-        </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="w-full sm:w-64">
-            <label
-              htmlFor="results-challenge-id"
-              className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600"
-            >
-              Challenge ID
-            </label>
-
-            {/* FIXED INPUT */}
-            <input
-              id="results-challenge-id"
-              name="challengeId"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={challengeIdInput}
-              onChange={handleChallengeIdChange}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  loadWinners();
-                }
-              }}
-              placeholder="e.g. 1"
-              className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-base font-semibold text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={loadWinners}
-            disabled={loadingWinners}
-            className="h-12 rounded-xl bg-orange-600 px-6 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loadingWinners ? "Loading..." : "Load Winners"}
-          </button>
-        </div>
-
-        {/* Results */}
-        <div className="mt-6">
-          {loadingWinners ? (
-            <div className="rounded-xl bg-gray-50 px-5 py-10 text-center text-sm text-gray-500">
-              Loading winners...
-            </div>
-          ) : hasSearched && winners.length === 0 ? (
-            <div className="rounded-xl bg-gray-50 px-5 py-10 text-center text-sm text-gray-500">
-              No winners found for this challenge.
-            </div>
-          ) : winners.length > 0 ? (
-            <div className="overflow-x-auto rounded-xl border border-gray-100">
-              <table className="w-full min-w-[760px] text-left">
-                <thead className="bg-gray-50">
+          {loadingResults ? (
+            <p className="py-10 text-center text-sm text-gray-500">Loading...</p>
+          ) : leaderboard.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray-500">
+              No verified activities yet.
+            </p>
+          ) : (
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-xs uppercase tracking-wider text-gray-400">
                   <tr>
-                    <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Rank
-                    </th>
-
-                    <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Winner
-                    </th>
-
-                    <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Category
-                    </th>
-
-                    <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Award
-                    </th>
-
-                    <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Announced
-                    </th>
-
-                    <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Action
-                    </th>
+                    <th className="py-2 pr-3">#</th>
+                    <th className="py-2 pr-3">Runner</th>
+                    <th className="py-2 pr-3">KM</th>
+                    <th className="py-2 pr-3">Days</th>
+                    <th className="py-2" />
                   </tr>
                 </thead>
-
-                <tbody className="divide-y divide-gray-100">
-                  {winners.map((winner) => (
-                    <tr key={winner.id} className="hover:bg-gray-50">
-                      <td className="px-5 py-4">
-                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 text-sm font-black text-orange-700">
-                          {winner.rank}
-                        </span>
+                <tbody>
+                  {leaderboard.map((entry) => (
+                    <tr key={entry.userId} className="border-t border-gray-100">
+                      <td className="py-3 pr-3 font-black">{entry.rank}</td>
+                      <td className="py-3 pr-3">
+                        <p className="font-bold text-gray-900">{entry.name}</p>
+                        <p className="text-xs text-gray-400">User #{entry.userId}</p>
                       </td>
-
-                      <td className="px-5 py-4">
-                        <div className="font-bold text-gray-950">
-                          {winner.name || `User #${winner.userId}`}
-                        </div>
-
-                        <div className="mt-1 text-xs text-gray-400">
-                          User ID: {winner.userId}
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-gray-600">
-                        {winner.categoryName ||
-                          (winner.categoryId
-                            ? `Category #${winner.categoryId}`
-                            : "-")}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span className="rounded-full bg-green-100 px-3 py-1.5 text-xs font-bold text-green-700">
-                          {winner.awardType}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-gray-500">
-                        {formatDate(winner.announcedAt)}
-                      </td>
-
-                      <td className="px-5 py-4 text-right">
+                      <td className="py-3 pr-3">{Number(entry.totalVerifiedKm).toFixed(2)}</td>
+                      <td className="py-3 pr-3">{entry.activeDays}</td>
+                      <td className="py-3 text-right">
                         <button
                           type="button"
-                          onClick={() => handleDeleteWinner(winner.id)}
-                          className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
+                          onClick={() => pickRunner(entry)}
+                          className="rounded-lg border border-orange-200 px-3 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-50"
                         >
-                          Delete
+                          Pick
                         </button>
                       </td>
                     </tr>
@@ -438,177 +309,128 @@ export default function AdminResultsPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
-            <div className="rounded-xl bg-gray-50 px-5 py-8 text-center text-sm text-gray-400">
-              Enter a Challenge ID and click "Load Winners".
-            </div>
           )}
-        </div>
+        </section>
 
-        {winners.length > 0 && (
-          <button
-            type="button"
-            onClick={useChallengeForWinnerForm}
-            className="mt-5 rounded-xl border border-orange-200 px-4 py-2.5 text-sm font-bold text-orange-700 hover:bg-orange-50"
-          >
-            Use Challenge #{challengeIdInput} for Winner Form
-          </button>
-        )}
-      </section>
+        <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-black text-gray-950">Declared Winners</h2>
+          <p className="mt-1 text-sm text-gray-500">Shown publicly on the Leaderboard page.</p>
 
-      {/* DECLARE WINNER */}
-      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-600">
-            Administration
-          </p>
+          {loadingResults ? (
+            <p className="py-10 text-center text-sm text-gray-500">Loading...</p>
+          ) : winners.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray-500">No winners declared yet.</p>
+          ) : (
+            <ul className="mt-5 space-y-3">
+              {winners.map((winner) => (
+                <li
+                  key={winner.id}
+                  className="flex items-start justify-between gap-4 rounded-2xl border border-gray-100 p-4"
+                >
+                  <div>
+                    <p className="font-bold text-gray-900">
+                      {winner.rank != null ? `#${winner.rank} · ` : ""}
+                      {winner.name}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {awardLabel(winner.awardType)}
+                      {winner.categoryName ? ` · ${winner.categoryName}` : ""}
+                      {` · ${formatDate(winner.announcedAt)}`}
+                    </p>
+                    {winner.awardNote && (
+                      <p className="mt-1 text-sm text-gray-600">{winner.awardNote}</p>
+                    )}
+                  </div>
 
-          <h2 className="mt-2 text-2xl font-black text-gray-950">
-            Declare Winner
-          </h2>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteWinner(winner)}
+                    disabled={deletingId != null}
+                    className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {deletingId === winner.id ? "Removing..." : "Remove"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Add a winner to a challenge.
-          </p>
-        </div>
+      <section id="declare-winner" className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-black text-gray-950">Declare Winner</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          For {selectedChallenge?.title ?? "the selected challenge"}
+          {categoryId
+            ? ` · ${selectedChallenge?.categories.find((c) => String(c.id) === categoryId)?.name ?? ""}`
+            : " · no specific category"}
+        </p>
 
-        <form onSubmit={handleCreateWinner} className="mt-7 space-y-6">
+        <form onSubmit={handleCreateWinner} className="mt-6 space-y-5">
           <div className="grid gap-5 md:grid-cols-2">
-            {/* Challenge ID */}
-            <div>
-              <label
-                htmlFor="form-challenge-id"
-                className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600"
-              >
-                Challenge ID
-              </label>
-
-              <input
-                id="form-challenge-id"
-                name="challengeId"
-                type="text"
-                inputMode="numeric"
-                value={form.challengeId}
-                onChange={handleFormChange}
-                placeholder="e.g. 1"
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-              />
-            </div>
-
-            {/* Category ID */}
-            <div>
-              <label
-                htmlFor="category-id"
-                className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600"
-              >
-                Category ID
-              </label>
-
-              <input
-                id="category-id"
-                name="categoryId"
-                type="text"
-                inputMode="numeric"
-                value={form.categoryId}
-                onChange={handleFormChange}
-                placeholder="e.g. 1"
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-              />
-            </div>
-
-            {/* User ID */}
-            <div>
-              <label
-                htmlFor="user-id"
-                className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600"
-              >
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600">
                 User ID
-              </label>
-
+              </span>
               <input
-                id="user-id"
-                name="userId"
-                type="text"
-                inputMode="numeric"
                 value={form.userId}
-                onChange={handleFormChange}
-                placeholder="e.g. 25"
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-              />
-            </div>
-
-            {/* Rank */}
-            <div>
-              <label
-                htmlFor="rank"
-                className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600"
-              >
-                Rank
-              </label>
-
-              <input
-                id="rank"
-                name="rank"
-                type="text"
+                onChange={(e) => setForm({ ...form, userId: e.target.value.replace(/\D/g, "") })}
                 inputMode="numeric"
-                value={form.rank}
-                onChange={handleFormChange}
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                placeholder="Pick from leaderboard"
+                disabled={submitting}
+                className={inputClass}
               />
-            </div>
+            </label>
 
-            {/* Award Type */}
-            <div>
-              <label
-                htmlFor="award-type"
-                className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600"
-              >
-                Award Type
-              </label>
-
-              <select
-                id="award-type"
-                name="awardType"
-                value={form.awardType}
-                onChange={handleFormChange}
-                className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
-              >
-                <option value="CATEGORY_WINNER">
-                  CATEGORY WINNER
-                </option>
-                <option value="OVERALL_WINNER">
-                  OVERALL WINNER
-                </option>
-                <option value="RUNNER_UP">RUNNER UP</option>
-                <option value="SPECIAL_AWARD">SPECIAL AWARD</option>
-              </select>
-            </div>
-
-            {/* Award Note */}
-            <div>
-              <label
-                htmlFor="award-note"
-                className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600"
-              >
-                Award Note
-              </label>
-
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600">
+                Rank (optional)
+              </span>
               <input
-                id="award-note"
-                name="awardNote"
-                type="text"
-                value={form.awardNote}
-                onChange={handleFormChange}
-                placeholder="e.g. Outstanding performance"
-                className="h-12 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                value={form.rank}
+                onChange={(e) => setForm({ ...form, rank: e.target.value.replace(/\D/g, "") })}
+                inputMode="numeric"
+                disabled={submitting}
+                className={inputClass}
               />
-            </div>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600">
+                Award Type
+              </span>
+              <select
+                value={form.awardType}
+                onChange={(e) => setForm({ ...form, awardType: e.target.value as AwardType })}
+                disabled={submitting}
+                className={inputClass}
+              >
+                {AWARD_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.15em] text-gray-600">
+                Award Note (optional)
+              </span>
+              <input
+                value={form.awardNote}
+                onChange={(e) => setForm({ ...form, awardNote: e.target.value })}
+                maxLength={255}
+                disabled={submitting}
+                className={inputClass}
+              />
+            </label>
           </div>
 
           <div className="flex justify-end border-t border-gray-100 pt-5">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !selectedChallenge}
               className="rounded-xl bg-green-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? "Declaring..." : "Declare Winner"}

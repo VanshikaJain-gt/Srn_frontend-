@@ -6,11 +6,11 @@ export interface User {
   email: string;
   phone?: string | null;
   dateOfBirth?: string | null;
-  role: string;
+  role: "USER" | "ADMIN";
   profilePhotoUrl?: string | null;
-  passwordSet?: boolean;
-  stravaConnected?: boolean;
-  createdAt?: string;
+  passwordSet: boolean;
+  stravaConnected: boolean;
+  createdAt?: string | null;
 }
 
 export interface AuthResponse {
@@ -22,7 +22,7 @@ export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
-  phone: string;
+  phone?: string | null;
 }
 
 export interface LoginRequest {

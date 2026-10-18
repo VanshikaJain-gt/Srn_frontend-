@@ -1,11 +1,11 @@
 import { apiClient } from "@/lib/api-client";
 
+/** Backend enum EventStatus. */
 export type EventStatus =
   | "UPCOMING"
   | "ONGOING"
   | "COMPLETED"
-  | "CANCELLED"
-  | string;
+  | "CANCELLED";
 
 export interface EventResponse {
   id: number;
@@ -37,16 +37,9 @@ export interface EventUpdateRequest extends EventCreateRequest {
   status?: EventStatus | null;
 }
 
+/** Without query params the backend returns a plain list (not a page). */
 export async function getEvents(): Promise<EventResponse[]> {
-  const data = await apiClient.get<
-    EventResponse[] | { content?: EventResponse[] }
-  >("/api/events");
-
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  return Array.isArray(data.content) ? data.content : [];
+  return apiClient.get<EventResponse[]>("/api/events");
 }
 
 export async function getEventById(id: number): Promise<EventResponse> {

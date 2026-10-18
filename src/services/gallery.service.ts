@@ -1,68 +1,46 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient, MAX_PAGE_SIZE, PageResponse } from "@/lib/api-client";
 
+/** Exact backend GalleryResponse DTO. */
 export interface GalleryResponse {
   id: number;
-  eventId: number;
+  eventId: number | null;
   imageUrl: string;
-  caption: string;
-  category: string;
-  published: boolean;
+  caption: string | null;
+  category: string | null;
+  published: boolean | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }
 
-export interface CreateGalleryRequest {
-  eventId: number;
+/** Backend GalleryRequest: only imageUrl is required. */
+export interface GalleryRequest {
+  eventId: number | null;
   imageUrl: string;
-  caption: string;
-  category: string;
+  caption: string | null;
+  category: string | null;
   published: boolean;
 }
 
-export interface UpdateGalleryRequest {
-  eventId: number;
-  imageUrl: string;
-  caption: string;
-  category: string;
-  published: boolean;
-}
-
-interface GalleryPageResponse {
-  content: GalleryResponse[];
-  totalElements?: number;
-  totalPages?: number;
-  page?: number;
-  size?: number;
-}
+export type CreateGalleryRequest = GalleryRequest;
+export type UpdateGalleryRequest = GalleryRequest;
 
 /**
- * Admin: Get all gallery items.
+ * Admin: GET /api/admin/gallery always returns a PageResponse.
+ * Loads the largest page the backend allows.
  */
 export async function getAdminGallery(): Promise<GalleryResponse[]> {
-  const response = await apiClient.get<
-    GalleryResponse[] | GalleryPageResponse
-  >("/api/admin/gallery");
+  const response = await apiClient.get<PageResponse<GalleryResponse>>(
+    `/api/admin/gallery?page=0&size=${MAX_PAGE_SIZE}`
+  );
 
-  if (Array.isArray(response)) {
-    return response;
-  }
-
-  return Array.isArray(response?.content) ? response.content : [];
+  return response.content ?? [];
 }
 
 /**
- * Public: Get published gallery items.
+ * Public: without page/size the backend returns a plain list of published items.
  */
 export async function getPublicGallery(): Promise<GalleryResponse[]> {
-  const response = await apiClient.get<
-    GalleryResponse[] | GalleryPageResponse
-  >("/api/gallery");
-
-  if (Array.isArray(response)) {
-    return response;
-  }
-
-  return Array.isArray(response?.content) ? response.content : [];
+  return apiClient.get<GalleryResponse[]>("/api/gallery");
 }
 
 /**

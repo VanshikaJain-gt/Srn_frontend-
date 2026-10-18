@@ -13,6 +13,26 @@ export class ApiError extends Error {
   }
 }
 
+function clearStoredToken(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("sunrisers_token");
+}
+
+/**
+ * User-facing message for any thrown value. Backend errors arrive as
+ * ErrorResponse { message } and are surfaced as-is.
+ */
+export function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 function getAuthToken(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -45,19 +65,38 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      "Cannot reach the server. Please check your connection and try again.",
+      0
+    );
+  }
 
   const data = await parseResponse(response);
 
   if (!response.ok) {
+    // A rejected token is useless; drop it so the UI stops acting logged in.
+    if (response.status === 401 && token) {
+      clearStoredToken();
+    }
+
     let message = "Something went wrong.";
 
-    if (typeof data === "object" && data !== null && "message" in data) {
-      message = String((data as { message?: unknown }).message);
-    } else if (typeof data === "string" && data.trim()) {
+    const backendMessage =
+      typeof data === "object" && data !== null && "message" in data
+        ? String((data as { message?: unknown }).message ?? "").trim()
+        : "";
+
+    if (backendMessage) {
+      message = backendMessage;
+    } else if (typeof data === "string" && data.trim() && data.length < 300) {
       message = data;
     } else if (response.status === 401) {
       message = "Unauthorized. Please login again.";
@@ -113,10 +152,18 @@ export const apiClient = {
   },
 
   clearToken(): void {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    localStorage.removeItem("sunrisers_token");
+    clearStoredToken();
   },
 };
+
+/** Backend shared PageResponse<T> (admin search endpoints). */
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  page: number;
+  size: number;
+}
+
+/** Largest page size the backend accepts on admin search endpoints. */
+export const MAX_PAGE_SIZE = 100;

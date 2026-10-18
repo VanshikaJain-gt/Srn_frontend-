@@ -1,6 +1,7 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient, MAX_PAGE_SIZE, PageResponse } from "@/lib/api-client";
 
-export type ActivitySource = "MANUAL" | "STRAVA" | string;
+/** Backend enum ActivitySource. */
+export type ActivitySource = "MANUAL" | "STRAVA";
 export type ActivityStatus = "PENDING" | "VERIFIED" | "REJECTED";
 
 /** Exact response contract returned by the Spring Boot ActivityResponse DTO. */
@@ -34,13 +35,7 @@ export interface RejectActivityRequest {
   reason: string;
 }
 
-export interface ActivityPageResponse {
-  content: ActivityResponse[];
-  totalElements: number;
-  totalPages: number;
-  page: number;
-  size: number;
-}
+export type ActivityPageResponse = PageResponse<ActivityResponse>;
 
 export function getActivityStatus(activity: ActivityResponse): ActivityStatus {
   if (activity.verified === true) return "VERIFIED";
@@ -58,24 +53,23 @@ export async function createManualActivity(
   return apiClient.post<ActivityResponse>("/api/activities", data);
 }
 
+/** GET /api/activities/me returns a plain list. */
 export async function getMyActivities(): Promise<ActivityResponse[]> {
-  const response = await apiClient.get<
-    ActivityResponse[] | ActivityPageResponse
-  >("/api/activities/me");
-
-  return Array.isArray(response) ? response : response.content ?? [];
+  return apiClient.get<ActivityResponse[]>("/api/activities/me");
 }
 
 export async function getActivityById(id: number): Promise<ActivityResponse> {
   return apiClient.get<ActivityResponse>(`/api/activities/${id}`);
 }
 
-export async function getAdminActivities(): Promise<ActivityResponse[]> {
-  const response = await apiClient.get<ActivityPageResponse>(
-    "/api/admin/activities?page=0&size=20&sort=activityDate"
+/**
+ * Admin: newest activities first (backend sorts DESC). Loads the largest page
+ * the backend allows; older activities beyond that are not shown.
+ */
+export async function getAdminActivities(): Promise<ActivityPageResponse> {
+  return apiClient.get<ActivityPageResponse>(
+    `/api/admin/activities?page=0&size=${MAX_PAGE_SIZE}&sort=activityDate`
   );
-
-  return response.content ?? [];
 }
 
 export async function verifyActivity(id: number): Promise<ActivityResponse> {

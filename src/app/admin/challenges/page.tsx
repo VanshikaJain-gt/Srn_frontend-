@@ -90,6 +90,8 @@ function getStatusLabel(status: ChallengeStatus) {
       return "Results Pending";
     case "COMPLETED":
       return "Completed";
+    case "CANCELLED":
+      return "Cancelled";
     default:
       return status;
   }
@@ -105,6 +107,8 @@ function getStatusClasses(status: ChallengeStatus) {
       return "bg-blue-100 text-blue-700";
     case "COMPLETED":
       return "bg-gray-100 text-gray-600";
+    case "CANCELLED":
+      return "bg-red-100 text-red-700";
     default:
       return "bg-gray-100 text-gray-600";
   }
@@ -172,7 +176,7 @@ function buildRequest(form: ChallengeForm): ChallengeRequest {
         category.minDaysForFinisher.trim()
           ? Number(category.minDaysForFinisher)
           : null,
-      fee: category.fee.trim() ? Number(category.fee) : 0,
+      fee: Number(category.fee),
       activityType: category.activityType,
       minDistancePerActivityKm: Number(
         category.minDistancePerActivityKm
@@ -183,10 +187,10 @@ function buildRequest(form: ChallengeForm): ChallengeRequest {
 
   return {
     title: form.title.trim(),
-    description: form.description.trim(),
+    description: form.description.trim() || null,
     startDate: form.startDate,
     endDate: form.endDate,
-    stravaCaptionTag: form.stravaCaptionTag.trim(),
+    stravaCaptionTag: form.stravaCaptionTag.trim() || null,
     categories,
   };
 }
@@ -393,8 +397,8 @@ export default function AdminChallengesPage() {
         return `Category ${index + 1}: maximum pace is required.`;
       }
 
-      if (Number(category.fee) < 0) {
-        return `Category ${index + 1}: fee cannot be negative.`;
+      if (!category.fee.trim() || !(Number(category.fee) > 0)) {
+        return `Category ${index + 1}: fee must be greater than 0.`;
       }
     }
 
@@ -502,10 +506,10 @@ export default function AdminChallengesPage() {
 
   async function handleDelete(challenge: Challenge) {
     const confirmed = window.confirm(
-      `Delete "${challenge.title}"?\n\nThis action cannot be undone.`
+      `Delete "${challenge.title}"?\n\nIf it already has registrations, activities or winners it will be marked Cancelled instead of deleted.`
     );
 
-    if (!confirmed) return;
+    if (!confirmed || deletingId != null) return;
 
     try {
       setDeletingId(challenge.id);
@@ -514,11 +518,16 @@ export default function AdminChallengesPage() {
 
       await deleteAdminChallenge(challenge.id);
 
-      setChallenges((current) =>
-        current.filter((item) => item.id !== challenge.id)
-      );
+      // Reload: the backend may have cancelled it instead of deleting it.
+      const refreshed = await getChallenges();
+      const stillThere = refreshed.some((item) => item.id === challenge.id);
 
-      setSuccess("Challenge deleted successfully.");
+      setChallenges(refreshed);
+      setSuccess(
+        stillThere
+          ? "Challenge has existing data, so it was marked Cancelled instead of deleted."
+          : "Challenge deleted successfully."
+      );
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -689,6 +698,7 @@ export default function AdminChallengesPage() {
               Results Pending
             </option>
             <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
       </div>
@@ -857,6 +867,9 @@ export default function AdminChallengesPage() {
                         </option>
                         <option value="COMPLETED">
                           Completed
+                        </option>
+                        <option value="CANCELLED">
+                          Cancelled
                         </option>
                       </select>
                     </td>
@@ -1237,7 +1250,7 @@ export default function AdminChallengesPage() {
 
                               <input
                                 type="number"
-                                min="0"
+                                min="0.01"
                                 step="0.01"
                                 value={category.fee}
                                 onChange={(event) =>

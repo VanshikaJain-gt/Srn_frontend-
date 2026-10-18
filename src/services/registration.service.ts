@@ -1,15 +1,30 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient, MAX_PAGE_SIZE, PageResponse } from "@/lib/api-client";
 
-export type TshirtSize = "XS" | "S" | "M" | "L" | "XL" | "XXL";
+export const TSHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
 
+// Backend stores tshirtSize as a free string (max 10); the UI offers these sizes.
+export type TshirtSize = (typeof TSHIRT_SIZES)[number];
+
+/** Backend enum RegistrationPaymentStatus. */
 export type PaymentStatus =
   | "NOT_REQUIRED"
   | "PENDING"
   | "PAID"
   | "VERIFIED"
-  | string;
+  | "REFUNDED";
 
-export type RegistrationStatus = "ACTIVE" | "CANCELLED" | "COMPLETED" | string;
+/** Backend enum RegistrationStatus. */
+export type RegistrationStatus = "ACTIVE" | "CANCELLED";
+
+/** Backend enum RegistrationSource. */
+export type RegistrationSource = "APP" | "ADMIN_MANUAL";
+
+/** Payment statuses that allow activity submission / leaderboard entry (backend rule). */
+export const PARTICIPATION_ALLOWED: PaymentStatus[] = [
+  "PAID",
+  "VERIFIED",
+  "NOT_REQUIRED",
+];
 
 export interface CreateEventRegistrationRequest {
   eventId: number;
@@ -22,22 +37,30 @@ export interface CreateChallengeRegistrationRequest {
   tshirtSize: TshirtSize;
 }
 
+/** Exact backend RegistrationResponse DTO. */
 export interface RegistrationResponse {
   id: number;
-  challengeId?: number | null;
-  challengeTitle?: string | null;
-  categoryId?: number | null;
-  categoryName?: string | null;
-  eventId?: number | null;
-  eventTitle?: string | null;
-  tshirtSize?: TshirtSize | null;
+  challengeId: number | null;
+  challengeTitle: string | null;
+  categoryId: number | null;
+  categoryName: string | null;
+  eventId: number | null;
+  eventTitle: string | null;
+  tshirtSize: string | null;
   paymentStatus: PaymentStatus;
-  amount?: number | null;
-  feePaid?: number | null;
-  registrationSource?: string | null;
-  registrationStatus?: RegistrationStatus | null;
-  registeredAt?: string | null;
-  createdAt?: string | null;
+  /** Fee for this registration (set when registering, even before payment). */
+  feePaid: number | null;
+  registrationSource: RegistrationSource | null;
+  registrationStatus: RegistrationStatus;
+  registeredAt: string | null;
+}
+
+export interface AdminRegistrationFilters {
+  userId?: number;
+  eventId?: number;
+  challengeId?: number;
+  paymentStatus?: PaymentStatus;
+  registrationStatus?: RegistrationStatus;
 }
 
 export async function registerForEvent(
@@ -56,12 +79,33 @@ export async function getMyRegistrations(): Promise<RegistrationResponse[]> {
   return apiClient.get<RegistrationResponse[]>("/api/registrations/me");
 }
 
-
 export async function cancelMyRegistration(
   registrationId: number
 ): Promise<RegistrationResponse> {
   return apiClient.put<RegistrationResponse>(
     `/api/registrations/${registrationId}/cancel`
+  );
+}
+
+/** Admin: GET /api/admin/registrations always returns a PageResponse. */
+export async function getAdminRegistrations(
+  filters: AdminRegistrationFilters = {},
+  page = 0,
+  size = MAX_PAGE_SIZE
+): Promise<PageResponse<RegistrationResponse>> {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value != null && value !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  params.set("page", String(page));
+  params.set("size", String(size));
+
+  return apiClient.get<PageResponse<RegistrationResponse>>(
+    `/api/admin/registrations?${params.toString()}`
   );
 }
 

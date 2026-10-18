@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { ApiError } from "@/lib/api-client";
+import { apiClient, ApiError } from "@/lib/api-client";
 
 import {
   Challenge,
@@ -13,7 +13,9 @@ import {
 } from "@/services/challenge.service";
 
 import {
+  getMyRegistrations,
   registerForChallenge,
+  TSHIRT_SIZES,
   TshirtSize,
   RegistrationResponse,
 } from "@/services/registration.service";
@@ -42,6 +44,8 @@ function getStatusLabel(status: Challenge["status"]) {
       return "Results Pending";
     case "COMPLETED":
       return "Completed";
+    case "CANCELLED":
+      return "Cancelled";
     default:
       return status;
   }
@@ -57,6 +61,8 @@ function getStatusClass(status: Challenge["status"]) {
       return "bg-blue-100 text-blue-700";
     case "COMPLETED":
       return "bg-gray-100 text-gray-600";
+    case "CANCELLED":
+      return "bg-red-100 text-red-700";
     default:
       return "bg-gray-100 text-gray-600";
   }
@@ -124,6 +130,8 @@ export default function ChallengeDetailPage() {
   const [tshirtSize, setTshirtSize] =
     useState<TshirtSize>("M");
 
+  const [needsLogin, setNeedsLogin] = useState(false);
+
   useEffect(() => {
     if (!Number.isInteger(challengeId) || challengeId <= 0) {
       setError("Invalid challenge ID.");
@@ -148,6 +156,27 @@ export default function ChallengeDetailPage() {
 
         if (data.categories.length > 0) {
           setSelectedCategoryId(data.categories[0].id);
+        }
+
+        // Show "already registered" instead of letting the backend reject a duplicate.
+        if (apiClient.getToken()) {
+          try {
+            const registrations = await getMyRegistrations();
+            const existing = registrations.find(
+              (registration) =>
+                registration.challengeId === data.id &&
+                registration.registrationStatus !== "CANCELLED"
+            );
+
+            if (!cancelled && existing) {
+              setRegistrationCreated(true);
+              setSuccess(
+                `You are already registered (${existing.categoryName ?? "category"}). ${getPaymentMessage(existing)}`
+              );
+            }
+          } catch {
+            // Registration status is secondary; the challenge itself still shows.
+          }
         }
       } catch (err) {
         if (cancelled) {
@@ -188,12 +217,12 @@ export default function ChallengeDetailPage() {
   }, [challenge, selectedCategoryId]);
 
   async function handleRegister() {
-    setError("");
-    setSuccess("");
-
-    if (!challenge) {
+    if (!challenge || registering) {
       return;
     }
+
+    setError("");
+    setSuccess("");
 
     if (!selectedCategoryId) {
       setError("Please select a category.");
@@ -218,6 +247,7 @@ export default function ChallengeDetailPage() {
           setError(
             "Please login before registering for a challenge."
           );
+          setNeedsLogin(true);
           return;
         }
 
@@ -525,12 +555,11 @@ export default function ChallengeDetailPage() {
                   disabled={registrationCreated}
                   className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium outline-none focus:border-orange-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <option value="XS">XS</option>
-                  <option value="S">S</option>
-                  <option value="M">M</option>
-                  <option value="L">L</option>
-                  <option value="XL">XL</option>
-                  <option value="XXL">XXL</option>
+                  {TSHIRT_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -540,6 +569,15 @@ export default function ChallengeDetailPage() {
                   <p className="text-sm font-medium text-red-700">
                     {error}
                   </p>
+
+                  {needsLogin && (
+                    <Link
+                      href="/login"
+                      className="mt-3 inline-flex rounded-xl bg-gray-900 px-4 py-2 text-sm font-bold text-white hover:bg-orange-600"
+                    >
+                      Login
+                    </Link>
+                  )}
                 </div>
               )}
 
@@ -577,7 +615,8 @@ export default function ChallengeDetailPage() {
                   registering ||
                   registrationCreated ||
                   !selectedCategory ||
-                  challenge.status === "COMPLETED"
+                  challenge.status === "COMPLETED" ||
+                  challenge.status === "CANCELLED"
                 }
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
@@ -588,6 +627,9 @@ export default function ChallengeDetailPage() {
                     </span>
                     Registered
                   </>
+                ) : challenge.status === "COMPLETED" ||
+                  challenge.status === "CANCELLED" ? (
+                  <>Registration Closed</>
                 ) : registering ? (
                   <>
                     <span className="material-symbols-outlined animate-spin text-[18px]">

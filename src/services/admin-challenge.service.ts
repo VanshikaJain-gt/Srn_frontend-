@@ -21,10 +21,10 @@ export interface AdminCategoryRequest {
 
 export interface ChallengeRequest {
   title: string;
-  description: string;
+  description: string | null;
   startDate: string;
   endDate: string;
-  stravaCaptionTag: string;
+  stravaCaptionTag: string | null;
   categories: AdminCategoryRequest[];
 }
 
