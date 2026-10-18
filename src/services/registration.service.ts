@@ -53,6 +53,9 @@ export interface RegistrationResponse {
   registrationSource: RegistrationSource | null;
   registrationStatus: RegistrationStatus;
   registeredAt: string | null;
+  /** Who registered (admin views; also present on the user's own list). */
+  userName: string | null;
+  userEmail: string | null;
 }
 
 export interface AdminRegistrationFilters {

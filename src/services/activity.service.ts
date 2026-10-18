@@ -20,6 +20,8 @@ export interface ActivityResponse {
   verified?: boolean | null;
   rejectionReason?: string | null;
   syncedAt?: string | null;
+  /** Who submitted the activity. */
+  userName?: string | null;
 }
 
 /** Exact request contract accepted by POST /api/activities. */

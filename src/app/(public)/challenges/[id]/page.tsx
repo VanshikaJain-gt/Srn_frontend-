@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { apiClient, ApiError } from "@/lib/api-client";
+import { formatFee } from "@/lib/format";
 
 import {
   Challenge,
@@ -78,14 +79,6 @@ function formatCategoryTarget(category: ChallengeCategory) {
   return category.maxDurationMinutes != null
     ? `${category.maxDurationMinutes} minutes`
     : "Duration target";
-}
-
-function formatFee(fee: number | null) {
-  if (fee == null || fee === 0) {
-    return "Free";
-  }
-
-  return `₹${fee}`;
 }
 
 function getPaymentMessage(registration: RegistrationResponse) {

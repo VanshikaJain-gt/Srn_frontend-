@@ -49,7 +49,7 @@ const EMPTY_CATEGORY: FormCategory = {
   targetKm: "",
   maxDurationMinutes: "",
   minDaysForFinisher: "",
-  fee: "0",
+  fee: "",
   activityType: "RUN",
   minDistancePerActivityKm: "",
   maxPaceMinPerKm: "",
@@ -397,8 +397,9 @@ export default function AdminChallengesPage() {
         return `Category ${index + 1}: maximum pace is required.`;
       }
 
-      if (!category.fee.trim() || !(Number(category.fee) > 0)) {
-        return `Category ${index + 1}: fee must be greater than 0.`;
+      // Backend CategoryRequest: fee is required, 0 = free category.
+      if (!category.fee.trim() || !(Number(category.fee) >= 0)) {
+        return `Category ${index + 1}: fee is required (enter 0 for a free category).`;
       }
     }
 
@@ -1250,7 +1251,7 @@ export default function AdminChallengesPage() {
 
                               <input
                                 type="number"
-                                min="0.01"
+                                min="0"
                                 step="0.01"
                                 value={category.fee}
                                 onChange={(event) =>

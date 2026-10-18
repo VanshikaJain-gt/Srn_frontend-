@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api-client";
+import { formatFee } from "@/lib/format";
 import {
   cancelAdminRegistration,
   getAdminRegistrations,
@@ -9,8 +10,6 @@ import {
 } from "@/services/registration.service";
 import { refundRegistration } from "@/services/payment.service";
 
-// The backend admin RegistrationResponse carries no user details
-// (no user id / name / email), so the list identifies rows by registration.
 type AdminRegistration = RegistrationResponse;
 
 function formatDate(value?: string | null) {
@@ -24,11 +23,6 @@ function formatDate(value?: string | null) {
   });
 }
 
-function formatMoney(value?: number | null) {
-  if (value == null || Number.isNaN(Number(value))) return "-";
-  return `₹${Number(value).toLocaleString("en-IN")}`;
-}
-
 function getTitle(registration: AdminRegistration) {
   return (
     registration.eventTitle ||
@@ -40,7 +34,7 @@ function getTitle(registration: AdminRegistration) {
 }
 
 function getParticipantName(registration: AdminRegistration) {
-  return `Registration #${registration.id}`;
+  return registration.userName || `Registration #${registration.id}`;
 }
 
 function getSourceLabel(registration: AdminRegistration) {
@@ -226,6 +220,7 @@ export default function AdminRegistrationsPage() {
       const searchable = [
         registration.id,
         getParticipantName(registration),
+        registration.userEmail,
         registration.eventTitle,
         registration.challengeTitle,
         registration.eventId,
@@ -361,7 +356,7 @@ export default function AdminRegistrationsPage() {
                           {getParticipantName(registration)}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {getSourceLabel(registration)}
+                          {registration.userEmail || getSourceLabel(registration)}
                         </div>
                       </td>
 
@@ -379,7 +374,7 @@ export default function AdminRegistrationsPage() {
                       </td>
 
                       <td className="px-3 py-5 font-semibold text-gray-800">
-                        {formatMoney(
+                        {formatFee(
                           registration.feePaid
                         )}
                       </td>
@@ -516,6 +511,15 @@ export default function AdminRegistrationsPage() {
                 </p>
               </div>
 
+              <div className="min-w-0 rounded-xl bg-gray-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Email
+                </p>
+                <p className="mt-2 break-all font-semibold text-gray-900">
+                  {selected.userEmail || "-"}
+                </p>
+              </div>
+
               <div className="rounded-xl bg-gray-50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
                   Payment
@@ -551,7 +555,7 @@ export default function AdminRegistrationsPage() {
                   Fee Paid
                 </p>
                 <p className="mt-2 font-semibold text-gray-900">
-                  {formatMoney(selected.feePaid)}
+                  {formatFee(selected.feePaid)}
                 </p>
               </div>
 
@@ -667,7 +671,7 @@ export default function AdminRegistrationsPage() {
 
             <div className="mt-5 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
               <p className="font-semibold">
-                Refund amount: {formatMoney(refundTarget.feePaid)}
+                Refund amount: {formatFee(refundTarget.feePaid)}
               </p>
               <p className="mt-1 leading-6">
                 Razorpay payments are refunded through Razorpay. For manual

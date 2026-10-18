@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ApiError,
 } from "@/lib/api-client";
+import { formatFee } from "@/lib/format";
 import {
   Challenge,
   ChallengeCategory,
@@ -71,14 +72,6 @@ function formatCategory(category: ChallengeCategory) {
   }
 
   return category.name;
-}
-
-function formatFee(fee: number | null) {
-  if (fee == null) {
-    return null;
-  }
-
-  return fee === 0 ? "Free" : `₹${fee}`;
 }
 
 function ChallengeCard({ challenge }: { challenge: Challenge }) {
@@ -150,11 +143,9 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
                   {formatCategory(category)}
                 </p>
 
-                {formatFee(category.fee) && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {formatFee(category.fee)}
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatFee(category.fee)}
+                </p>
               </div>
             </div>
           ))}

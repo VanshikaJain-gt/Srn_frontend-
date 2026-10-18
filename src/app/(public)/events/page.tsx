@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { apiClient, getErrorMessage } from "@/lib/api-client";
+import { formatFee } from "@/lib/format";
 import { getEvents, EventResponse } from "@/services/event.service";
 import { safeExternalUrl } from "@/lib/site-config";
 import {
@@ -76,11 +77,6 @@ function formatDate(date?: string | null) {
     month: "short",
     year: "numeric",
   });
-}
-
-function formatPrice(price: number | null | undefined) {
-  if (price == null || Number.isNaN(Number(price)) || Number(price) === 0) return "Free";
-  return `₹${Number(price).toLocaleString("en-IN")}`;
 }
 
 export default function EventsPage() {
@@ -507,7 +503,7 @@ export default function EventsPage() {
                           <span className="font-display-xl text-stat-value text-on-surface">
                             {event.isExternal
                               ? "External"
-                              : formatPrice(event.registrationFee)}
+                              : formatFee(event.registrationFee)}
                           </span>
                         </div>
 
@@ -657,7 +653,7 @@ export default function EventsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Registration fee</span>
                 <span className="text-lg font-black text-gray-950">
-                  {formatPrice(selectedEvent.registrationFee)}
+                  {formatFee(selectedEvent.registrationFee)}
                 </span>
               </div>
               <p className="mt-1 text-xs text-gray-500">

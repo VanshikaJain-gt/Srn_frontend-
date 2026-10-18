@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { ApiError, getErrorMessage } from "@/lib/api-client";
+import { formatFee } from "@/lib/format";
 
 import {
   cancelMyRegistration,
@@ -57,7 +58,11 @@ function isCancelled(registration: RegistrationView) {
 }
 
 function canPay(registration: RegistrationView) {
-  return !isCancelled(registration) && registration.paymentStatus === "PENDING";
+  return (
+    !isCancelled(registration) &&
+    registration.paymentStatus === "PENDING" &&
+    Number(registration.feePaid ?? 0) > 0
+  );
 }
 
 // Backend rule: paid/verified registrations must be refunded by an admin first.
@@ -823,9 +828,7 @@ function RegistrationCard({
         <InfoItem
           label="Fee"
           value={
-            registration.feePaid != null
-              ? `₹${Number(registration.feePaid).toFixed(2)}`
-              : "-"
+            formatFee(registration.feePaid, { decimals: true })
           }
         />
 
@@ -912,9 +915,7 @@ function RegistrationDetailsModal({
             <InfoItem
               label="Fee"
               value={
-                registration.feePaid != null
-                  ? `₹${Number(registration.feePaid).toFixed(2)}`
-                  : "-"
+                formatFee(registration.feePaid, { decimals: true })
               }
             />
 

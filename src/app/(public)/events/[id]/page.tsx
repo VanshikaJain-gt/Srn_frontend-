@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { apiClient, getErrorMessage } from "@/lib/api-client";
+import { formatFee } from "@/lib/format";
 import { safeExternalUrl } from "@/lib/site-config";
 import { EventResponse, getEventById } from "@/services/event.service";
 import {
@@ -30,11 +31,6 @@ function formatDate(value?: string | null) {
     month: "long",
     year: "numeric",
   });
-}
-
-function formatFee(fee?: number | null) {
-  if (fee == null || Number(fee) === 0) return "Free";
-  return `₹${Number(fee).toLocaleString("en-IN")}`;
 }
 
 export default function EventDetailPage() {
