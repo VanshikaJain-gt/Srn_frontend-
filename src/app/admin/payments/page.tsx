@@ -462,6 +462,7 @@ export default function AdminPaymentsPage() {
 
       {selected && (
         <Modal
+          error={error}
           title={`Payment #${selected.id}`}
           close={() => setSelected(null)}
         >
@@ -516,6 +517,7 @@ export default function AdminPaymentsPage() {
 
       {refundTarget && (
         <Modal
+          error={error}
           title={`Refund Payment #${refundTarget.id}`}
           close={() => {
             if (!working) {
@@ -542,7 +544,7 @@ export default function AdminPaymentsPage() {
                 setRefundReference(event.target.value)
               }
               className="mt-2 w-full rounded-xl border px-4 py-3"
-              placeholder="Optional"
+              placeholder="Required for manual (non-Razorpay) refunds"
             />
           </label>
 
@@ -586,6 +588,7 @@ export default function AdminPaymentsPage() {
 
       {manualOpen && (
         <Modal
+          error={error}
           title="Record Manual Payment"
           close={() => {
             if (!working) {
@@ -712,10 +715,13 @@ function Info({
 function Modal({
   title,
   close,
+  error,
   children,
 }: {
   title: string;
   close: () => void;
+  // Shown inside the dialog; the page-level message is hidden behind the overlay.
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -753,6 +759,12 @@ function Modal({
             Close
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         {children}
       </div>

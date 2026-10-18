@@ -591,6 +591,13 @@ export default function AdminRegistrationsPage() {
               </div>
             )}
 
+
+            {actionError && (
+              <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {actionError}
+              </div>
+            )}
+
             <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-semibold text-amber-900">
                 Cancellation & refund
@@ -667,6 +674,12 @@ export default function AdminRegistrationsPage() {
                 payments, enter the offline refund reference below.
               </p>
             </div>
+
+            {actionError && (
+              <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {actionError}
+              </div>
+            )}
 
             <label className="mt-5 block">
               <span className="text-sm font-semibold text-gray-800">

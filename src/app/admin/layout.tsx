@@ -273,6 +273,38 @@ export default function AdminLayout({
           </div>
         </header>
 
+        {/* Below lg the sidebar is hidden, so offer the same links here. */}
+        <nav className="flex gap-2 overflow-x-auto border-b border-orange-100 bg-white px-5 py-3 lg:hidden">
+          {[...navItems, { label: "Settings", href: "/admin/settings", icon: "settings" }].map(
+            (item) => {
+              const active =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold ${
+                    active
+                      ? "bg-orange-100 text-orange-700"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+          )}
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="shrink-0 rounded-xl px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+          >
+            Logout
+          </button>
+        </nav>
+
         <main className="p-5 lg:p-8">{children}</main>
       </div>
     </div>

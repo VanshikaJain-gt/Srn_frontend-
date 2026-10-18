@@ -189,6 +189,8 @@ export default function AdminActivitiesPage() {
                         <p className="mt-1 text-sm text-gray-500">
                           Activity #{activity.id}
                           {" • "}
+                          User #{activity.userId}
+                          {" • "}
                           {formatDate(activity.activityDate)}
                         </p>
 

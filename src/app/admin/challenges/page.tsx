@@ -1351,6 +1351,12 @@ export default function AdminChallengesPage() {
               </div>
 
               {/* Modal footer */}
+              {error && (
+                <div className="sticky bottom-[84px] mx-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
               <div className="sticky bottom-0 flex flex-col-reverse gap-3 border-t border-gray-100 bg-white px-6 py-5 sm:flex-row sm:justify-end">
                 <button
                   type="button"

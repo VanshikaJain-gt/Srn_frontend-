@@ -13,12 +13,6 @@ import {
   User,
 } from "@/services/auth.service";
 
-const DEFAULT_NOTIFICATIONS = {
-  registrations: true,
-  payments: true,
-  system: true,
-};
-
 function initials(name?: string | null) {
   if (!name?.trim()) return "A";
   return name
@@ -67,8 +61,6 @@ export default function AdminSettingsPage() {
     confirmPassword: "",
   });
 
-  const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATIONS);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -89,18 +81,6 @@ export default function AdminSettingsPage() {
           name: currentUser.name ?? "",
           phone: currentUser.phone ?? "",
         });
-
-        const stored = localStorage.getItem("srn_admin_notifications");
-        if (stored) {
-          try {
-            setNotifications({
-              ...DEFAULT_NOTIFICATIONS,
-              ...JSON.parse(stored),
-            });
-          } catch {
-            setNotifications(DEFAULT_NOTIFICATIONS);
-          }
-        }
       } catch (err) {
         if (!cancelled) {
           setError(getErrorMessage(err, "Unable to load admin settings."));
@@ -177,14 +157,6 @@ export default function AdminSettingsPage() {
     } finally {
       setChangingPassword(false);
     }
-  }
-
-  function toggleNotification(key: keyof typeof DEFAULT_NOTIFICATIONS) {
-    setNotifications((current) => {
-      const next = { ...current, [key]: !current[key] };
-      localStorage.setItem("srn_admin_notifications", JSON.stringify(next));
-      return next;
-    });
   }
 
   function handleLogout() {
@@ -363,34 +335,6 @@ export default function AdminSettingsPage() {
                 </form>
               </section>
 
-              {/* Notifications */}
-              <section className="rounded-3xl border border-orange-100 bg-white p-6 shadow-sm">
-                <div className="mb-6">
-                  <h2 className="text-xl font-black text-gray-950">Notifications</h2>
-                  <p className="mt-1 text-sm text-gray-500">Control notification preferences for this browser.</p>
-                </div>
-
-                <div className="space-y-3">
-                  <SettingToggle
-                    label="Registration notifications"
-                    description="New event and challenge registrations."
-                    checked={notifications.registrations}
-                    onChange={() => toggleNotification("registrations")}
-                  />
-                  <SettingToggle
-                    label="Payment notifications"
-                    description="Payment and refund activity."
-                    checked={notifications.payments}
-                    onChange={() => toggleNotification("payments")}
-                  />
-                  <SettingToggle
-                    label="System notifications"
-                    description="Important admin and system messages."
-                    checked={notifications.system}
-                    onChange={() => toggleNotification("system")}
-                  />
-                </div>
-              </section>
             </div>
 
             {/* Platform */}
@@ -432,42 +376,6 @@ export default function AdminSettingsPage() {
         )}
       </div>
     </main>
-  );
-}
-
-function SettingToggle({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className="flex w-full items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-left transition hover:bg-orange-50"
-    >
-      <span>
-        <span className="block text-sm font-bold text-gray-900">{label}</span>
-        <span className="mt-1 block text-xs leading-5 text-gray-500">{description}</span>
-      </span>
-      <span
-        className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-          checked ? "bg-orange-600" : "bg-gray-300"
-        }`}
-      >
-        <span
-          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition ${
-            checked ? "left-6" : "left-1"
-          }`}
-        />
-      </span>
-    </button>
   );
 }
 
