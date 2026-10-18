@@ -313,13 +313,13 @@ export default function AchievementsPage() {
         </nav>
 
         <div className="space-y-3 px-4">
-          <button
-            type="button"
+          <Link
+            href="/dashboard/activities"
             className="srn-gradient flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] active:scale-95"
           >
             <span className="text-base">▶</span>
-            Start Run
-          </button>
+            Log a Run
+          </Link>
 
           <button
             type="button"

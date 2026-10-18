@@ -1029,28 +1029,28 @@ export default function DashboardPage() {
 
             <div className="flex flex-wrap justify-center gap-5 text-sm text-[#594139]">
               <Link
-                href="#"
+                href="/privacy"
                 className="hover:text-[#ab3500]"
               >
                 Privacy Policy
               </Link>
 
               <Link
-                href="#"
+                href="/terms"
                 className="hover:text-[#ab3500]"
               >
                 Terms of Service
               </Link>
 
               <Link
-                href="#"
+                href="/contact"
                 className="hover:text-[#ab3500]"
               >
                 Contact Us
               </Link>
 
               <Link
-                href="#"
+                href="/contact"
                 className="hover:text-[#ab3500]"
               >
                 Support

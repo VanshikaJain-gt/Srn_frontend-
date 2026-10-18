@@ -253,7 +253,7 @@ export default function AboutPage() {
           </p>
           <div className="relative z-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
-              href="/signup"
+              href="/register"
               className="flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 font-label-bold text-label-bold text-primary shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               Join the Community

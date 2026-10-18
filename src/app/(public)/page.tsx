@@ -1,7 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+import { Challenge, getChallenges } from "@/services/challenge.service";
+import { EventResponse, getEvents } from "@/services/event.service";
 
 /* ---------- Data ---------- */
 
@@ -40,46 +44,24 @@ const MILESTONES = [
   { icon: "rocket_launch", filled: false, bg: "bg-primary-container", fg: "text-on-primary-container", year: "2024: Elite Performance", copy: "Launching professional coaching and elite race series for all members." },
 ];
 
-const EVENTS = [
-  {
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDjHYlwug-uc5JpMb_ZtgCad1rptf27lPIYuBvla0SFIR6HJuu8rC_eI4kk2IXDg9zKxt9gqVwNdvsRDBt7UjfwydRWSgZzaJug4NMDnwigz2SOpbGJhUf5Bmh860Rg_4GPtl__sfSIEI5CmIv5jgF5ihn7IyWe9lTxCsWfJ1SNOm4NEbH4yq7TYnbw5mNYOHJPPAWESbPQ0-5pX20w8oJzDngdfGFKiJved3dLyr140so-JYKXKhzN8rpDYCjnkj3cbxlACTBVnOrW",
-    alt: "Massive marathon start line in a modern city at sunrise",
-    month: "MAR", day: "12", tag: "Marathon", distance: "42.2 KM",
-    title: "Ocean View Classic",
-    copy: "The premier marathon of the season, taking runners along the scenic coast at daybreak.",
-  },
-  {
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCBuVwrUhmnpDrtUaBoX6G0igK7REBQp-ghxIUcfKie2A6cMy53oVPZi6ppWhbBlzI9MiAeAn93CtlGHutvVrbCnTDBV2S1t24pKCbv1qU7S1gkqdzI0jHHlX2MWcNhKgbWafpiLEAZwmpWlmS6Lr2AAjLc5MBq2euKYOsUpmVaLS297BIaksnNct1o86o0FPbxutU_v1WQ5BEpixRI2IFk0fW2gg1LCMvZLGD8Zf5pPdwEyTf8u6kbGa43RmTgSe2dq7VPHHDbm4MT",
-    alt: "Runner's legs mid-stride during a fast 10K race at sunrise",
-    month: "APR", day: "05", tag: "10K Run", distance: "10 KM",
-    title: "City Lights Chase",
-    copy: "A high-speed urban run through the illuminated city center before the morning rush.",
-  },
-  {
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCYFxz8I2y6xsivQaguSwCIVNNawI-A3PDqYG7-keRRk6yTPsoevgPqE55AunbtWlvaFIU7ynZ-Ytur34zcqGfPaq09nstyXLV4tLhLv_ZvLTCSk5xArxgqiMRCUwBTyjRHwVHXrUf__CjHG76CD2NbhkScM8uaXSC8BWJ8CF5RYwqgUgghWSNbDlVytlR0oKI5S81mIP-LYNL-epqU7Wtx3v1I5eeYhhiU-xxkYjw1HZEr5mn0zxUDqu4IN5_0jMplSEb3yQh5ZlAS",
-    alt: "Group in bright costumes at a community fun run in a sunlit park",
-    month: "MAY", day: "20", tag: "Fun Run", distance: "5 KM",
-    title: "Color Blast 5K",
-    copy: "A vibrant, non-competitive community walk/run for all ages and fitness levels.",
-  },
-];
+const DEFAULT_EVENT_IMAGE =
+  "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?q=80&w=1600&auto=format&fit=crop";
 
-const CHALLENGES = [
-  {
-    icon: "route", bg: "bg-primary-container", fg: "text-on-primary-container",
-    title: "Sunrise 100K Streak", percent: 78, percentLabel: "78% Full",
-    barColor: "bg-primary", textColor: "text-primary",
-    copy: "4,203 Runners participating this month",
-    buttonColor: "bg-primary",
-  },
-  {
-    icon: "altitude", bg: "bg-tertiary-container", fg: "text-on-tertiary-container",
-    title: "Peak Climber Elite", percent: 25, percentLabel: "25% Full",
-    barColor: "bg-tertiary", textColor: "text-tertiary",
-    copy: "1,120 Elite runners scaling 10k meters elevation",
-    buttonColor: "bg-tertiary",
-  },
-];
+function eventDateParts(value?: string | null) {
+  if (!value) return { month: "TBA", day: "—" };
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return { month: "TBA", day: "—" };
+  return {
+    month: date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase(),
+    day: String(date.getDate()).padStart(2, "0"),
+  };
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+}
 
 const GALLERY = [
   {
@@ -152,6 +134,41 @@ function StatCard({ stat, active }: { stat: Stat; active: boolean }) {
 export default function Home() {
   const statsRef = useRef<HTMLDivElement>(null);
   const [statsActive, setStatsActive] = useState(false);
+  const [upcomingEvents, setUpcomingEvents] = useState<EventResponse[]>([]);
+  const [openChallenges, setOpenChallenges] = useState<Challenge[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    // Home page previews are best-effort: the sections simply show an
+    // empty state if the API is unavailable.
+    getEvents()
+      .then((events) => {
+        if (cancelled) return;
+        setUpcomingEvents(
+          events
+            .filter((event) => event.status === "UPCOMING" || event.status === "ONGOING")
+            .sort((a, b) => (a.eventDate ?? "9999").localeCompare(b.eventDate ?? "9999"))
+            .slice(0, 3)
+        );
+      })
+      .catch(() => {});
+
+    getChallenges()
+      .then((challenges) => {
+        if (cancelled) return;
+        setOpenChallenges(
+          challenges
+            .filter((challenge) => challenge.status === "ACTIVE" || challenge.status === "UPCOMING")
+            .slice(0, 2)
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const node = statsRef.current;
@@ -217,19 +234,19 @@ export default function Home() {
 
       <div className="mt-12 flex flex-wrap gap-5">
 
-        <button className="flex items-center gap-2 rounded-xl bg-[#ff6b1a] px-8 py-4 text-lg font-bold text-white transition-all hover:scale-105 hover:bg-[#ff7a2f]">
+        <Link href="/register" className="flex items-center gap-2 rounded-xl bg-[#ff6b1a] px-8 py-4 text-lg font-bold text-white transition-all hover:scale-105 hover:bg-[#ff7a2f]">
           Join Community
           <span className="material-symbols-outlined">
             arrow_forward
           </span>
-        </button>
+        </Link>
 
-        <button className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-8 py-4 text-lg font-semibold text-white backdrop-blur-md transition-all hover:bg-white/20">
+        <Link href="/events" className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-8 py-4 text-lg font-semibold text-white backdrop-blur-md transition-all hover:bg-white/20">
           Upcoming Runs
           <span className="material-symbols-outlined">
             arrow_forward
           </span>
-        </button>
+        </Link>
 
       </div>
 
@@ -357,46 +374,64 @@ export default function Home() {
               </span>
               <h2 className="font-headline-lg text-headline-lg text-on-surface">Upcoming Events</h2>
             </div>
-            <button className="hidden items-center gap-sm font-label-bold text-label-bold text-primary hover:underline md:flex">
-              View All Calendar <span className="material-symbols-outlined">calendar_today</span>
-            </button>
+            <Link href="/events" className="hidden items-center gap-sm font-label-bold text-label-bold text-primary hover:underline md:flex">
+              View All Events <span className="material-symbols-outlined">calendar_today</span>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 gap-lg md:grid-cols-3">
-            {EVENTS.map((event) => (
-              <div
-                key={event.title}
-                className="group overflow-hidden rounded-3xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-all hover:shadow-xl"
-              >
-                <div className="relative h-56 overflow-hidden">
-                  <Image
-                    src={event.image}
-                    alt={event.alt}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute right-4 top-4 rounded-2xl bg-surface-container-lowest/90 px-md py-sm text-center shadow-md backdrop-blur-md">
-                    <span className="block font-bold leading-none text-primary">{event.month}</span>
-                    <span className="block text-xl font-extrabold leading-none text-on-surface">{event.day}</span>
-                  </div>
-                </div>
-                <div className="space-y-md p-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-secondary-container px-md py-xs text-xs font-bold uppercase tracking-wider text-on-secondary-container">
-                      {event.tag}
-                    </span>
-                    <span className="flex items-center gap-xs text-on-surface-variant">
-                      <span className="material-symbols-outlined text-sm">distance</span> {event.distance}
-                    </span>
-                  </div>
-                  <h3 className="font-headline-md text-headline-md text-on-surface">{event.title}</h3>
-                  <p className="line-clamp-2 text-on-surface-variant">{event.copy}</p>
-                  <button className="btn-gradient w-full rounded-2xl py-md font-label-bold text-label-bold text-on-primary transition-transform active:scale-95">
-                    Register Now
-                  </button>
-                </div>
+            {upcomingEvents.length === 0 && (
+              <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-lg text-on-surface-variant md:col-span-3">
+                No upcoming events right now.{" "}
+                <Link href="/events" className="font-bold text-primary underline">
+                  See all events
+                </Link>
               </div>
-            ))}
+            )}
+
+            {upcomingEvents.map((event) => {
+              const { month, day } = eventDateParts(event.eventDate);
+
+              return (
+                <div
+                  key={event.id}
+                  className="group overflow-hidden rounded-3xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm transition-all hover:shadow-xl"
+                >
+                  <div className="relative h-56 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- banner URLs come from admins and can be any host */}
+                    <img
+                      src={event.bannerImageUrl || DEFAULT_EVENT_IMAGE}
+                      alt={event.title}
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    <div className="absolute right-4 top-4 rounded-2xl bg-surface-container-lowest/90 px-md py-sm text-center shadow-md backdrop-blur-md">
+                      <span className="block font-bold leading-none text-primary">{month}</span>
+                      <span className="block text-xl font-extrabold leading-none text-on-surface">{day}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-md p-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-full bg-secondary-container px-md py-xs text-xs font-bold uppercase tracking-wider text-on-secondary-container">
+                        {event.isExternal ? "External" : "SRN Event"}
+                      </span>
+                      <span className="flex items-center gap-xs text-on-surface-variant">
+                        <span className="material-symbols-outlined text-sm">location_on</span> {event.location || "Location TBA"}
+                      </span>
+                    </div>
+                    <h3 className="font-headline-md text-headline-md text-on-surface">{event.title}</h3>
+                    {event.description && (
+                      <p className="line-clamp-2 text-on-surface-variant">{event.description}</p>
+                    )}
+                    <Link
+                      href={`/events/${event.id}`}
+                      className="btn-gradient block w-full rounded-2xl py-md text-center font-label-bold text-label-bold text-on-primary transition-transform active:scale-95"
+                    >
+                      View &amp; Register
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -416,27 +451,42 @@ export default function Home() {
               </p>
 
               <div className="space-y-md pt-lg">
-                {CHALLENGES.map((challenge) => (
+                {openChallenges.length === 0 && (
+                  <div className="rounded-3xl border border-outline-variant/30 bg-surface-container p-lg text-on-surface-variant">
+                    No open challenges right now.{" "}
+                    <Link href="/challenges" className="font-bold text-primary underline">
+                      See all challenges
+                    </Link>
+                  </div>
+                )}
+
+                {openChallenges.map((challenge) => (
                   <div
-                    key={challenge.title}
+                    key={challenge.id}
                     className="flex flex-col items-center gap-md rounded-3xl border border-outline-variant/30 bg-surface-container p-lg md:flex-row"
                   >
-                    <div className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full ${challenge.bg} ${challenge.fg}`}>
-                      <span className="material-symbols-outlined fill text-4xl">{challenge.icon}</span>
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary-container text-on-primary-container">
+                      <span className="material-symbols-outlined fill text-4xl">route</span>
                     </div>
                     <div className="flex-grow space-y-sm">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between gap-md">
                         <h4 className="font-label-bold text-label-bold">{challenge.title}</h4>
-                        <span className={`font-bold ${challenge.textColor}`}>{challenge.percentLabel}</span>
+                        <span className="font-bold text-primary">
+                          {challenge.status === "ACTIVE" ? "Live" : "Upcoming"}
+                        </span>
                       </div>
-                      <div className="h-3 w-full overflow-hidden rounded-full bg-outline-variant/30">
-                        <div className={`h-full ${challenge.barColor}`} style={{ width: `${challenge.percent}%` }} />
-                      </div>
-                      <p className="text-xs text-on-surface-variant">{challenge.copy}</p>
+                      <p className="text-xs text-on-surface-variant">
+                        {formatShortDate(challenge.startDate)} – {formatShortDate(challenge.endDate)} ·{" "}
+                        {challenge.categories.length}{" "}
+                        {challenge.categories.length === 1 ? "category" : "categories"}
+                      </p>
                     </div>
-                    <button className={`rounded-xl px-lg py-sm text-xs font-bold uppercase text-on-primary ${challenge.buttonColor}`}>
+                    <Link
+                      href={`/challenges/${challenge.id}`}
+                      className="rounded-xl bg-primary px-lg py-sm text-xs font-bold uppercase text-on-primary"
+                    >
                       Join
-                    </button>
+                    </Link>
                   </div>
                 ))}
               </div>
@@ -563,13 +613,13 @@ export default function Home() {
 
       <div className="mt-12 flex flex-wrap justify-center gap-6">
 
-        <button className="rounded-xl bg-[#ff6b1a] px-10 py-5 text-lg font-bold text-white transition hover:scale-105 hover:bg-[#ff7d2f]">
+        <Link href="/register" className="rounded-xl bg-[#ff6b1a] px-10 py-5 text-lg font-bold text-white transition hover:scale-105 hover:bg-[#ff7d2f]">
           Join Community →
-        </button>
+        </Link>
 
-        <button className="rounded-xl border border-white/30 bg-white/10 px-10 py-5 text-lg font-bold text-white backdrop-blur-lg transition hover:bg-white/20">
+        <Link href="/events" className="rounded-xl border border-white/30 bg-white/10 px-10 py-5 text-lg font-bold text-white backdrop-blur-lg transition hover:bg-white/20">
           Upcoming Runs →
-        </button>
+        </Link>
 
       </div>
 

@@ -21,7 +21,7 @@ const EMPTY_FORM = {
 
 type ProfileForm = typeof EMPTY_FORM;
 
-function formatJoinedDate(date?: string) {
+function formatJoinedDate(date?: string | null) {
   if (!date) return "—";
 
   const parsed = new Date(date);
@@ -103,13 +103,13 @@ function Sidebar({ user }: { user: User | null }) {
       </nav>
 
       <div className="space-y-3 px-4">
-        <button
-          type="button"
+        <Link
+          href="/dashboard/activities"
           className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6b35] to-[#ab3500] py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] active:scale-95"
         >
           <span className="text-base">▶</span>
-          Start Run
-        </button>
+          Log a Run
+        </Link>
 
         <button
           type="button"

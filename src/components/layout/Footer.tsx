@@ -1,6 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { SOCIAL_LINKS } from "@/lib/site-config";
+
+// Social icons stay hidden until real URLs are filled in site-config.
+const socialLinks = SOCIAL_LINKS.filter((link) => link.url);
+
 const EXPLORE_LINKS = [
   { label: "Events Calendar", href: "/events" },
   { label: "Global Leaderboard", href: "/results" },
@@ -43,20 +48,26 @@ export default function Footer() {
               challenge yourself.
             </p>
 
-            <div className="mt-8 flex gap-4">
+            {socialLinks.length > 0 && (
+              <div className="mt-8 flex gap-4">
 
-              {["facebook","camera_alt","play_circle","alternate_email"].map((icon)=>(
-                <button
-                  key={icon}
-                  className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-300 bg-gray-100 text-gray-700 transition-all duration-300 hover:border-orange-500 hover:bg-orange-500 hover:text-white"
-                >
-                  <span className="material-symbols-outlined">
-                    {icon}
-                  </span>
-                </button>
-              ))}
+                {socialLinks.map((link)=>(
+                  <a
+                    key={link.label}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={link.label}
+                    className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-300 bg-gray-100 text-gray-700 transition-all duration-300 hover:border-orange-500 hover:bg-orange-500 hover:text-white"
+                  >
+                    <span className="material-symbols-outlined">
+                      {link.icon}
+                    </span>
+                  </a>
+                ))}
 
-            </div>
+              </div>
+            )}
 
           </div>
 

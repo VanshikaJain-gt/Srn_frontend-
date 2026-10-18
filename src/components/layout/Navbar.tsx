@@ -119,7 +119,7 @@ export default function Navbar() {
 
               {/* Join Community */}
               <Link
-                href="/signup"
+                href="/register"
                 className="btn-gradient rounded-full px-lg py-md font-label-bold text-label-bold text-on-primary transition-all active:scale-95"
               >
                 Join Community
@@ -183,7 +183,7 @@ export default function Navbar() {
               </Link>
 
               <Link
-                href="/signup"
+                href="/register"
                 onClick={() => setIsMobileOpen(false)}
                 className="py-sm font-label-bold text-label-bold text-primary"
               >
