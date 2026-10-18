@@ -3,6 +3,8 @@
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ReactNode } from "react";
 
+import { GOOGLE_CLIENT_ID, GOOGLE_LOGIN_ENABLED } from "@/lib/site-config";
+
 interface GoogleProviderProps {
   children: ReactNode;
 }
@@ -10,18 +12,13 @@ interface GoogleProviderProps {
 export default function GoogleProvider({
   children,
 }: GoogleProviderProps) {
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-
-  if (!clientId) {
-    console.error(
-      "NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured."
-    );
-
+  // Without a client id the Google button is hidden, so no provider is needed.
+  if (!GOOGLE_LOGIN_ENABLED) {
     return <>{children}</>;
   }
 
   return (
-    <GoogleOAuthProvider clientId={clientId}>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       {children}
     </GoogleOAuthProvider>
   );

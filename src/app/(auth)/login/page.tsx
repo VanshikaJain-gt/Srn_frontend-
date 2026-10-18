@@ -3,17 +3,16 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
-
-import { loginUser, loginWithGoogle } from "@/services/auth.service";
-import { ApiError } from "@/lib/api-client";
+import GoogleSignInButton from "@/components/providers/GoogleSignInButton";
+import { getErrorMessage } from "@/lib/api-client";
+import { GOOGLE_LOGIN_ENABLED } from "@/lib/site-config";
+import { loginUser } from "@/services/auth.service";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,81 +45,16 @@ export default function LoginPage() {
         password,
       });
 
-      console.log("Email login successful:", response);
-
       if (response.user.role === "ADMIN") {
         router.push("/admin");
       } else {
         router.push("/dashboard");
       }
     } catch (err) {
-      console.error("Login failed:", err);
-
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Unable to login. Please try again.");
-      }
+      setError(getErrorMessage(err, "Unable to login. Please try again."));
     } finally {
       setLoading(false);
     }
-  };
-
-  /**
-   * Google Login
-   *
-   * Google gives us an ID token.
-   * We send that token to:
-   *
-   * POST /api/auth/google
-   */
-  const handleGoogleSuccess = async (
-    credentialResponse: CredentialResponse
-  ) => {
-    setError("");
-
-    if (!credentialResponse.credential) {
-      setError("Google login failed. No credential received.");
-      return;
-    }
-
-    try {
-      setGoogleLoading(true);
-
-      const response = await loginWithGoogle({
-        idToken: credentialResponse.credential,
-      });
-
-      console.log("Google login successful:", response);
-
-      if (response.user.role === "ADMIN") {
-        router.push("/admin");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch (err) {
-      console.error("Google login failed:", err);
-
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Unable to login with Google. Please try again.");
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  /**
-   * Google Login Error
-   */
-  const handleGoogleError = () => {
-    console.error("Google Login Failed");
-    setError("Google login failed. Please try again.");
   };
 
   return (
@@ -193,51 +127,24 @@ export default function LoginPage() {
           </div>
 
           {/* =========================
-              SOCIAL LOGIN
+              SOCIAL LOGIN (only when Google is configured)
           ========================== */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+          {GOOGLE_LOGIN_ENABLED && (
+            <>
+              <GoogleSignInButton onError={setError} />
 
-            {/* Google */}
-            <div className="flex items-center justify-center">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                useOneTap={false}
-                theme="outline"
-                size="large"
-                text="signin_with"
-                shape="rectangular"
-                width="210"
-              />
-            </div>
+              {/* Divider */}
+              <div className="relative flex items-center py-1">
+                <div className="flex-grow border-t border-outline-variant" />
 
-            {/* Strava */}
-            <button
-              type="button"
-              disabled
-              className="flex items-center justify-center gap-sm px-lg py-sm border-2 border-outline-variant rounded-xl font-label-bold text-sm text-on-surface/50 cursor-not-allowed"
-            >
-              Strava
-            </button>
-          </div>
+                <span className="flex-shrink mx-md text-on-surface-variant font-label-bold text-xs">
+                  OR LOGIN WITH EMAIL
+                </span>
 
-          {/* Google Loading */}
-          {googleLoading && (
-            <div className="text-center text-sm text-on-surface-variant">
-              Signing in with Google...
-            </div>
+                <div className="flex-grow border-t border-outline-variant" />
+              </div>
+            </>
           )}
-
-          {/* Divider */}
-          <div className="relative flex items-center py-1">
-            <div className="flex-grow border-t border-outline-variant" />
-
-            <span className="flex-shrink mx-md text-on-surface-variant font-label-bold text-xs">
-              OR LOGIN WITH EMAIL
-            </span>
-
-            <div className="flex-grow border-t border-outline-variant" />
-          </div>
 
           {/* API Error */}
           {error && (
@@ -326,23 +233,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember */}
-            <div className="flex items-center gap-sm">
-              <input
-                className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
-                id="remember"
-                type="checkbox"
-                disabled={loading}
-              />
-
-              <label
-                className="font-body-md text-xs text-on-surface-variant cursor-pointer"
-                htmlFor="remember"
-              >
-                Keep me logged in for 30 days
-              </label>
-            </div>
-
             {/* Login Button */}
             <button
               type="submit"
@@ -382,7 +272,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="text-center text-xs text-on-surface-variant/60 font-body-md">
-            © 2024 Sunrise Runners Network. All rights reserved.
+            © {new Date().getFullYear()} Sunrise Runners Network. All rights reserved.
           </p>
         </div>
       </section>

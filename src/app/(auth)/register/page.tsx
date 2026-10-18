@@ -4,7 +4,9 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { ApiError } from "@/lib/api-client";
+import GoogleSignInButton from "@/components/providers/GoogleSignInButton";
+import { getErrorMessage } from "@/lib/api-client";
+import { GOOGLE_LOGIN_ENABLED } from "@/lib/site-config";
 import { registerUser } from "@/services/auth.service";
 
 export default function RegisterPage() {
@@ -49,8 +51,9 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    // Same limits as the backend RegisterRequest (bcrypt uses at most 72 bytes).
+    if (password.length < 8 || password.length > 72) {
+      setError("Password must be 8-72 characters.");
       return;
     }
 
@@ -62,14 +65,12 @@ export default function RegisterPage() {
     try {
       setStatus("loading");
 
-      const response = await registerUser({
+      await registerUser({
         name: name.trim(),
         email: email.trim(),
         password,
         phone: phone.trim(),
       });
-
-      console.log("Registration successful:", response);
 
       setStatus("done");
 
@@ -79,17 +80,8 @@ export default function RegisterPage() {
         router.push("/dashboard");
       }, 700);
     } catch (err) {
-      console.error("Registration failed:", err);
-
       setStatus("idle");
-
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Unable to create your account. Please try again.");
-      }
+      setError(getErrorMessage(err, "Unable to create your account. Please try again."));
     }
   };
 
@@ -247,7 +239,8 @@ export default function RegisterPage() {
                   name="phone"
                   type="tel"
                   required
-                  placeholder="+91 9876543210"
+                  maxLength={15}
+                  placeholder="+919876543210"
                   autoComplete="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -361,7 +354,9 @@ export default function RegisterPage() {
               >
                 I agree to the{" "}
                 <a
-                  href="#"
+                  href="/terms"
+                  target="_blank"
+                  rel="noreferrer"
                   className="font-label-bold text-primary hover:underline"
                 >
                   Terms &amp; Conditions
@@ -382,7 +377,7 @@ export default function RegisterPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={status === "loading"}
+              disabled={status !== "idle"}
               className="flex w-full items-center justify-center gap-sm rounded-full bg-gradient-to-r from-[#ab3500] to-[#ff6b35] py-sm font-label-bold text-sm text-white shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {status === "loading" ? (
@@ -410,34 +405,22 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          {/* Social Signup */}
-          <div className="relative flex items-center py-1">
-            <div className="flex-grow border-t border-outline-variant" />
+          {/* Social Signup (only when Google is configured) */}
+          {GOOGLE_LOGIN_ENABLED && (
+            <>
+              <div className="relative flex items-center py-1">
+                <div className="flex-grow border-t border-outline-variant" />
 
-            <span className="mx-md flex-shrink font-label-bold text-xs text-on-surface-variant">
-              OR SIGN UP WITH
-            </span>
+                <span className="mx-md flex-shrink font-label-bold text-xs text-on-surface-variant">
+                  OR SIGN UP WITH
+                </span>
 
-            <div className="flex-grow border-t border-outline-variant" />
-          </div>
+                <div className="flex-grow border-t border-outline-variant" />
+              </div>
 
-          <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-sm rounded-xl border-2 border-outline-variant px-lg py-sm font-label-bold text-sm text-on-surface transition-all hover:bg-surface-container active:scale-[0.98]"
-            >
-              Google
-            </button>
-
-            <button
-              type="button"
-              disabled
-              className="flex items-center justify-center gap-sm rounded-xl border-2 border-outline-variant px-lg py-sm font-label-bold text-sm text-on-surface/50 transition-all cursor-not-allowed"
-              title="Strava integration will be available later"
-            >
-              Strava
-            </button>
-          </div>
+              <GoogleSignInButton text="signup_with" onError={setError} />
+            </>
+          )}
 
           {/* Login */}
           <p className="text-center font-body-md text-sm text-on-surface-variant">
@@ -452,7 +435,7 @@ export default function RegisterPage() {
 
           {/* Footer */}
           <p className="font-body-md text-center text-xs text-on-surface-variant/60">
-            © 2026 Sunrise Runners Network. All rights reserved.
+            © {new Date().getFullYear()} Sunrise Runners Network. All rights reserved.
           </p>
         </div>
       </section>
