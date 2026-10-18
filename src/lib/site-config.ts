@@ -39,3 +39,20 @@ export const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || "";
 
 export const GOOGLE_LOGIN_ENABLED = GOOGLE_CLIENT_ID.length > 0;
+
+/**
+ * Only http(s) links are rendered for admin-entered external URLs, so a bad
+ * value (e.g. "javascript:...") can never become a clickable link.
+ */
+export function safeExternalUrl(url?: string | null): string | null {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}

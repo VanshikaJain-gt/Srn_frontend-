@@ -110,7 +110,11 @@ export default function ResultsPage() {
         ]);
 
         setLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
-        setWinners(Array.isArray(winnersData) ? winnersData : []);
+        setWinners(
+          [...winnersData].sort(
+            (a, b) => (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER)
+          )
+        );
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) {
           setLeaderboard([]);

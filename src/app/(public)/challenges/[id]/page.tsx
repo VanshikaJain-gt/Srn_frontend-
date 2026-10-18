@@ -171,7 +171,9 @@ export default function ChallengeDetailPage() {
             if (!cancelled && existing) {
               setRegistrationCreated(true);
               setSuccess(
-                `You are already registered (${existing.categoryName ?? "category"}). ${getPaymentMessage(existing)}`
+                existing.paymentStatus === "PENDING"
+                  ? `You are registered (${existing.categoryName ?? "category"}). Complete the payment from My Registrations.`
+                  : `You are registered (${existing.categoryName ?? "category"}).`
               );
             }
           } catch {

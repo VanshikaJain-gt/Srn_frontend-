@@ -600,7 +600,7 @@ export default function DashboardPage() {
             className="srn-gradient flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] active:scale-95"
           >
             <span>🏃</span>
-            Start Run
+            Log a Run
           </Link>
 
           <button
@@ -1022,7 +1022,7 @@ export default function DashboardPage() {
               </span>
 
               <p className="text-sm text-[#594139]">
-                © 2024 Sunrise Runners Network.
+                © {new Date().getFullYear()} Sunrise Runners Network.
                 All rights reserved.
               </p>
             </div>

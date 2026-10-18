@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { apiClient, getErrorMessage } from "@/lib/api-client";
 import { getEvents, EventResponse } from "@/services/event.service";
+import { safeExternalUrl } from "@/lib/site-config";
 import {
   getMyRegistrations,
   registerForEvent,
@@ -370,7 +371,7 @@ export default function EventsPage() {
               </h2>
               {!loading && !error && (
                 <p className="mt-1 text-sm text-on-surface-variant">
-                  {filtered.length} event{filtered.length === 1 ? "" : "s"} from the live backend
+                  {filtered.length} event{filtered.length === 1 ? "" : "s"}
                 </p>
               )}
             </div>
@@ -439,6 +440,7 @@ export default function EventsPage() {
                 const isCompleted = event.status === "COMPLETED";
                 const isCancelled = event.status === "CANCELLED";
                 const isExternal = event.isExternal;
+                const externalUrl = safeExternalUrl(event.externalRegistrationUrl);
 
                 return (
                   <article
@@ -520,16 +522,16 @@ export default function EventsPage() {
                           >
                             Registered
                           </Link>
-                        ) : isExternal && !event.externalRegistrationUrl ? (
+                        ) : isExternal && !externalUrl ? (
                           <Link
                             href={`/events/${event.id}`}
                             className="rounded-2xl border border-primary px-lg py-3 font-label-bold text-primary transition-all hover:bg-primary-container/10"
                           >
                             Details
                           </Link>
-                        ) : isExternal && event.externalRegistrationUrl ? (
+                        ) : isExternal && externalUrl ? (
                           <a
-                            href={event.externalRegistrationUrl}
+                            href={externalUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="sunrise-gradient inner-glow rounded-2xl px-lg py-3 font-label-bold text-white transition-all active:scale-95"
@@ -563,7 +565,7 @@ export default function EventsPage() {
                 LOAD MORE RACES
               </button>
               <p className="text-sm text-on-surface-variant">
-                Showing {visibleEvents.length} of {filtered.length} upcoming events
+                Showing {visibleEvents.length} of {filtered.length} events
               </p>
             </div>
           )}

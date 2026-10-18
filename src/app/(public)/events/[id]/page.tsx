@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { apiClient, getErrorMessage } from "@/lib/api-client";
+import { safeExternalUrl } from "@/lib/site-config";
 import { EventResponse, getEventById } from "@/services/event.service";
 import {
   getMyRegistrations,
@@ -166,6 +167,7 @@ export default function EventDetailPage() {
   }
 
   const closed = event.status === "COMPLETED" || event.status === "CANCELLED";
+  const externalUrl = safeExternalUrl(event.externalRegistrationUrl);
 
   return (
     <main className="min-h-screen bg-[#fffaf7]">
@@ -253,9 +255,9 @@ export default function EventDetailPage() {
                   no longer accepts registrations.
                 </p>
               ) : event.isExternal ? (
-                event.externalRegistrationUrl ? (
+                externalUrl ? (
                   <a
-                    href={event.externalRegistrationUrl}
+                    href={externalUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-orange-700"
