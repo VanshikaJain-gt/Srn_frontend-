@@ -82,17 +82,18 @@ async function request<T>(
   const data = await parseResponse(response);
 
   if (!response.ok) {
-    // A rejected token is useless; drop it so the UI stops acting logged in.
-    if (response.status === 401 && token) {
-      clearStoredToken();
-    }
-
     let message = "Something went wrong.";
 
     const backendMessage =
       typeof data === "object" && data !== null && "message" in data
         ? String((data as { message?: unknown }).message ?? "").trim()
         : "";
+
+    // The security filter rejects a missing/expired token with an empty 401.
+    // A 401 with a message (e.g. wrong current password) is not a token problem.
+    if (response.status === 401 && token && !backendMessage) {
+      clearStoredToken();
+    }
 
     if (backendMessage) {
       message = backendMessage;

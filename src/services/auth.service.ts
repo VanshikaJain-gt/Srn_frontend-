@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api-client";
+import { apiClient, ApiError } from "@/lib/api-client";
 
 export interface User {
   id: number;
@@ -99,7 +99,16 @@ export async function updateCurrentUser(
 export async function changePassword(
   data: ChangePasswordRequest
 ): Promise<void> {
-  await apiClient.put<void>("/api/users/me/password", data);
+  try {
+    await apiClient.put<void>("/api/users/me/password", data);
+  } catch (error) {
+    // Backend answers a wrong current password with the generic login message.
+    if (error instanceof ApiError && error.status === 401) {
+      throw new ApiError("Current password is incorrect.", 401, error.data);
+    }
+
+    throw error;
+  }
 }
 
 export function logoutUser(): void {
