@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { ApiError } from "@/lib/api-client";
-import { getCurrentUser, logoutUser, User } from "@/services/auth.service";
+import { getCurrentUser, User } from "@/services/auth.service";
 import {
   ActivityResponse,
   getActivityStatus,
@@ -259,7 +258,6 @@ export default function DashboardPage() {
   const [error, setError] =
     useState("");
 
-  const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
@@ -470,11 +468,6 @@ export default function DashboardPage() {
       .slice(0, 2);
   }, [events]);
 
-  const handleLogout = () => {
-    logoutUser();
-    router.push("/login");
-  };
-
   return (
     <div className="min-h-screen bg-[#fff8f6] text-[#261814]">
       <style jsx global>{`
@@ -519,102 +512,7 @@ export default function DashboardPage() {
         }
       `}</style>
 
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col bg-[#ffe9e3] py-6 shadow-md lg:flex">
-        <div className="mb-12 px-4">
-          <Link
-            href="/dashboard"
-            className="srn-font-sora text-2xl font-extrabold tracking-tight text-[#ab3500]"
-          >
-            SRN
-          </Link>
-        </div>
-
-        <div className="mb-8 px-4">
-          <p className="truncate text-sm font-bold">
-            {loading
-              ? "Loading..."
-              : user?.name || "Runner"}
-          </p>
-
-          <p className="mt-1 text-xs text-[#594139]">
-            {user?.role === "ADMIN"
-              ? "Admin"
-              : "Runner"}
-          </p>
-        </div>
-
-        <nav className="flex-1 space-y-1">
-          <NavItem
-            href="/"
-            icon="⌂"
-            label="Home"
-          />
-
-          <NavItem
-            active
-            href="/dashboard"
-            icon="▣"
-            label="Dashboard"
-          />
-
-          <NavItem
-            href="/dashboard/profile"
-            icon="◉"
-            label="Profile"
-          />
-
-          <NavItem
-            href="/dashboard/registrations"
-            icon="✓"
-            label="My Registrations"
-          />
-
-          <NavItem
-            href="/dashboard/activities"
-            icon="🏃"
-            label="My Activities"
-          />
-
-          <NavItem
-            href="/dashboard/strava"
-            icon="↻"
-            label="Strava Sync"
-          />
-
-          <NavItem
-            href="/dashboard/achievements"
-            icon="★"
-            label="Achievements"
-          />
-
-          <NavItem
-            href="/dashboard/settings"
-            icon="⚙"
-            label="Settings"
-          />
-        </nav>
-
-        <div className="space-y-3 px-4">
-          <Link
-            href="/dashboard/activities"
-            className="srn-gradient flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] active:scale-95"
-          >
-            <span>🏃</span>
-            Log a Run
-          </Link>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-[#e1bfb5] bg-white py-3 text-sm font-bold text-[#ab3500] transition hover:bg-[#fff1ed] active:scale-[0.98]"
-          >
-            <span>↪</span>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <main className="lg:ml-64">
+      <main>
         <header className="sticky top-0 z-40 border-b border-[#e1bfb5]/30 bg-[#fff8f6]/85 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-12">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
@@ -1060,35 +958,6 @@ export default function DashboardPage() {
         </footer>
       </main>
     </div>
-  );
-}
-
-function NavItem({
-  active,
-  href,
-  icon,
-  label,
-}: {
-  active?: boolean;
-  href: string;
-  icon: string;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`mx-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.98] ${
-        active
-          ? "bg-[#ff6b35] text-[#5f1900]"
-          : "text-[#594139] hover:bg-[#f7ddd5]"
-      }`}
-    >
-      <span className="w-5 text-center">
-        {icon}
-      </span>
-
-      {label}
-    </Link>
   );
 }
 

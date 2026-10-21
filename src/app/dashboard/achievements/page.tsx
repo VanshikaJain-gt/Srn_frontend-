@@ -7,8 +7,7 @@ import {
   ActivityResponse,
   getMyActivities,
 } from "@/services/activity.service";
-import { getCurrentUser, logoutUser, User } from "@/services/auth.service";
-import { useRouter } from "next/navigation";
+import { getCurrentUser, User } from "@/services/auth.service";
 
 type Achievement = {
   id: string;
@@ -164,7 +163,6 @@ function buildAchievements(activities: ActivityResponse[]): Achievement[] {
 }
 
 export default function AchievementsPage() {
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [activities, setActivities] = useState<ActivityResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -269,73 +267,7 @@ export default function AchievementsPage() {
         }
       `}</style>
 
-      {/* Desktop Sidebar — kept identical to the main Dashboard sidebar */}
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col bg-[#ffe9e3] py-6 shadow-md lg:flex">
-        <div className="mb-12 px-4">
-          <div className="srn-font-sora text-2xl font-extrabold tracking-tight text-[#ab3500]">
-            SRN
-          </div>
-        </div>
-
-        <div className="mb-8 flex items-center gap-3 px-4">
-          <div className="h-12 w-12 overflow-hidden rounded-full bg-[#f7ddd5]">
-            {user?.profilePhotoUrl ? (
-              <img
-                className="h-full w-full object-cover"
-                src={user.profilePhotoUrl}
-                alt="Runner profile"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-lg font-extrabold text-[#ab3500]">
-                {(user?.name?.charAt(0) || "R").toUpperCase()}
-              </div>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold">
-              {loading ? "Loading..." : user?.name || "Runner"}
-            </p>
-            <p className="text-xs text-[#594139]">
-              {user?.role === "ADMIN" ? "Admin" : "Runner"}
-            </p>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-1">
-          <NavItem href="/" icon="⌂" label="Home" />
-          <NavItem href="/dashboard" icon="▣" label="Dashboard" />
-          <NavItem href="/dashboard/profile" icon="◉" label="Profile" />
-          <NavItem href="/dashboard/registrations" icon="✓" label="My Registrations" />
-          <NavItem href="/dashboard/activities" icon="🏃" label="My Activities" />
-          <NavItem href="/dashboard/strava" icon="↻" label="Strava Sync" />
-          <NavItem active href="/dashboard/achievements" icon="★" label="Achievements" />
-          <NavItem href="/dashboard/settings" icon="⚙" label="Settings" />
-        </nav>
-
-        <div className="space-y-3 px-4">
-          <Link
-            href="/dashboard/activities"
-            className="srn-gradient flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] active:scale-95"
-          >
-            <span className="text-base">▶</span>
-            Log a Run
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => {
-              logoutUser();
-              router.push("/login");
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-[#e1bfb5] bg-white py-3 text-sm font-bold text-[#ab3500] transition hover:bg-[#fff1ed] active:scale-[0.98]"
-          >
-            <span className="text-base">↪</span>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <main className="lg:ml-64">
+      <main>
         <header className="sticky top-0 z-40 border-b border-[#e1bfb5]/30 bg-[#fff8f6]/90 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-12">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
@@ -514,32 +446,6 @@ export default function AchievementsPage() {
         </div>
       </main>
     </div>
-  );
-}
-
-function NavItem({
-  active,
-  href,
-  icon,
-  label,
-}: {
-  active?: boolean;
-  href: string;
-  icon: string;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`mx-2 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
-        active
-          ? "bg-[#ff6b35] text-[#5f1900]"
-          : "text-[#594139] hover:bg-[#f7ddd5]"
-      }`}
-    >
-      <span className="w-5 text-center">{icon}</span>
-      {label}
-    </Link>
   );
 }
 

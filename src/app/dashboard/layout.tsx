@@ -1,23 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
+import DashboardSidebar from "@/components/layout/DashboardSidebar";
 import { apiClient } from "@/lib/api-client";
-
-// These pages render their own sidebar navigation.
-const PAGES_WITH_SIDEBAR = [
-  "/dashboard",
-  "/dashboard/profile",
-  "/dashboard/achievements",
-];
-
-const QUICK_LINKS = [
-  { href: "/dashboard/registrations", label: "My Registrations" },
-  { href: "/dashboard/activities", label: "My Activities" },
-  { href: "/dashboard/settings", label: "Settings" },
-];
 
 function subscribeToStorage(onChange: () => void) {
   window.addEventListener("storage", onChange);
@@ -29,7 +16,6 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
   const router = useRouter();
   // null on the server, so nothing protected renders before the token is known.
   const hasToken = useSyncExternalStore(
@@ -50,35 +36,12 @@ export default function DashboardLayout({
     return null;
   }
 
-  const showTopBar = !PAGES_WITH_SIDEBAR.includes(pathname);
-
+  // One shared navigation (with Logout) for every dashboard page.
   return (
     <>
-      {showTopBar && (
-        <nav className="border-b border-[#f0ded8] bg-white">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 text-sm font-bold sm:px-6">
-            <Link href="/dashboard" className="text-[#ab3500] hover:underline">
-              ← Dashboard
-            </Link>
+      <DashboardSidebar />
 
-            {QUICK_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={
-                  pathname === link.href
-                    ? "text-[#261814]"
-                    : "text-[#594139] hover:text-[#ab3500]"
-                }
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        </nav>
-      )}
-
-      {children}
+      <div className="lg:pl-64">{children}</div>
     </>
   );
 }

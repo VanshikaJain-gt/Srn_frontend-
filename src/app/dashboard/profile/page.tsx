@@ -58,101 +58,6 @@ function getInputDate(value?: string | null) {
   return value.slice(0, 10);
 }
 
-function Sidebar({ user }: { user: User | null }) {
-  const router = useRouter();
-
-  return (
-    <aside className="fixed left-0 top-0 z-50 hidden h-screen w-64 flex-col bg-[#ffe9e3] py-6 shadow-md lg:flex">
-      <div className="mb-12 px-4">
-        <Link
-          href="/dashboard"
-          className="font-[Sora] text-2xl font-extrabold tracking-tight text-[#ab3500]"
-        >
-          SRN
-        </Link>
-      </div>
-
-      <div className="mb-8 flex items-center gap-3 px-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f7ddd5] font-[Sora] font-bold text-[#ab3500]">
-          {user?.profilePhotoUrl ? (
-            <img
-              src={user.profilePhotoUrl}
-              alt={user.name || "Runner profile"}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            getInitials(user?.name)
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold">{user?.name || "Runner"}</p>
-          <p className="text-xs text-[#594139]">
-            {user?.role === "ADMIN" ? "Admin" : "Runner"}
-          </p>
-        </div>
-      </div>
-
-      <nav className="flex-1 space-y-1">
-        <NavItem href="/" icon="⌂" label="Home" />
-        <NavItem href="/dashboard" icon="▣" label="Dashboard" />
-        <NavItem active href="/dashboard/profile" icon="◉" label="Profile" />
-        <NavItem href="/dashboard/registrations" icon="✓" label="My Registrations" />
-        <NavItem href="/dashboard/strava" icon="↻" label="Strava Sync" />
-        <NavItem href="/dashboard/achievements" icon="★" label="Achievements" />
-        <NavItem href="/dashboard/settings" icon="⚙" label="Settings" />
-      </nav>
-
-      <div className="space-y-3 px-4">
-        <Link
-          href="/dashboard/activities"
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ff6b35] to-[#ab3500] py-3 text-sm font-bold text-white shadow-md transition hover:scale-[1.02] active:scale-95"
-        >
-          <span className="text-base">▶</span>
-          Log a Run
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => {
-            logoutUser();
-            router.push("/login");
-          }}
-          className="flex w-full items-center justify-center gap-2 rounded-full border border-[#e1bfb5] bg-white py-3 text-sm font-bold text-[#ab3500] transition hover:bg-[#fff1ed] active:scale-[0.98]"
-        >
-          <span className="text-base">↪</span>
-          Logout
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function NavItem({
-  href,
-  icon,
-  label,
-  active = false,
-}: {
-  href: string;
-  icon: string;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`mx-2 flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold transition ${
-        active
-          ? "bg-[#ff6b35] text-[#261814] shadow-sm"
-          : "text-[#594139] hover:bg-[#f7ddd5]"
-      }`}
-    >
-      <span className="w-5 text-center text-base">{icon}</span>
-      <span>{label}</span>
-    </Link>
-  );
-}
-
 export default function ProfilePage() {
   const router = useRouter();
 
@@ -294,8 +199,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fff8f6] text-[#261814] lg:pl-64">
-        <Sidebar user={null} />
+      <div className="min-h-screen bg-[#fff8f6] text-[#261814]">
         <main className="flex min-h-screen items-center justify-center px-6">
           <div className="text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#f7ddd5] border-t-[#ab3500]" />
@@ -309,9 +213,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fff8f6] text-[#261814] lg:pl-64">
-      <Sidebar user={user} />
-
+    <div className="min-h-screen bg-[#fff8f6] text-[#261814]">
       <main>
         <header className="sticky top-0 z-40 border-b border-[#e1bfb5]/30 bg-[#fff8f6]/90 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-12">
           <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4">
