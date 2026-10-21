@@ -710,7 +710,7 @@ export default function AdminChallengesPage() {
           <table className="w-full min-w-[1000px]">
             <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-400">
+                <th className="w-[38%] min-w-[280px] px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-400">
                   Challenge
                 </th>
 
@@ -782,13 +782,19 @@ export default function AdminChallengesPage() {
                     key={challenge.id}
                     className="transition hover:bg-orange-50/40"
                   >
-                    <td className="px-6 py-5">
-                      <div>
-                        <p className="font-bold text-gray-950">
+                    <td className="w-[38%] min-w-[280px] px-6 py-5">
+                      <div className="max-w-[28rem]">
+                        <p
+                          className="line-clamp-2 whitespace-normal break-words font-bold text-gray-950"
+                          title={challenge.title}
+                        >
                           {challenge.title}
                         </p>
 
-                        <p className="mt-1 line-clamp-2 max-w-md text-sm text-gray-500">
+                        <p
+                          className="mt-1 line-clamp-2 whitespace-normal break-words text-sm text-gray-500"
+                          title={challenge.description || undefined}
+                        >
                           {challenge.description ||
                             "No description"}
                         </p>
