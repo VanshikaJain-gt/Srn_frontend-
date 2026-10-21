@@ -220,7 +220,7 @@ export default function GalleryPage() {
               No gallery images yet
             </h3>
 
-            <p className="mx-auto mt-2 max-w-md text-slate-500">
+            <p className="mx-auto mt-2 max-w-[28rem] text-slate-500">
               Published images added from the admin panel will appear here.
             </p>
           </div>

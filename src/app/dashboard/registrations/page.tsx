@@ -598,7 +598,7 @@ export default function RegistrationsPage() {
                 No registrations yet
               </h2>
 
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
+              <p className="mx-auto mt-2 max-w-[28rem] text-sm leading-6 text-gray-500">
                 You have not registered for any challenge or event yet.
               </p>
 

@@ -171,7 +171,7 @@ export default function ResultsPage() {
             value={selectedChallengeId}
             onChange={(event) => setSelectedChallengeId(event.target.value)}
             disabled={loadingChallenges || challenges.length === 0}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 outline-none focus:border-orange-500 sm:max-w-xl"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 outline-none focus:border-orange-500 sm:max-w-[36rem]"
           >
             {loadingChallenges ? (
               <option value="">Loading challenges...</option>

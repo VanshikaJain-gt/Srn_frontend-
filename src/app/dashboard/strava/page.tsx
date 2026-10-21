@@ -29,7 +29,7 @@ export default function StravaPage() {
 
           <h1 className="mt-2 text-3xl font-black">Strava Integration</h1>
 
-          <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#594139]">
+          <p className="mx-auto mt-4 max-w-[28rem] text-sm leading-6 text-[#594139]">
             Automatic syncing of your runs from Strava is not available yet.
             Until then, you can log your runs manually and they will be
             verified by the SRN team.
