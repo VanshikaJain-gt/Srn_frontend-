@@ -22,6 +22,8 @@ export interface ActivityResponse {
   syncedAt?: string | null;
   /** Who submitted the activity. */
   userName?: string | null;
+  /** Proof link or screenshot URL; null for activities logged before proof was required. */
+  proofUrl?: string | null;
 }
 
 /** Exact request contract accepted by POST /api/activities. */
@@ -31,6 +33,8 @@ export interface CreateManualActivityRequest {
   durationSec: number;
   activityDate: string;
   caption?: string | null;
+  /** Required: http(s) link to the run or uploaded screenshot URL (max 1000 chars). */
+  proofUrl: string;
 }
 
 export interface RejectActivityRequest {
@@ -43,6 +47,21 @@ export function getActivityStatus(activity: ActivityResponse): ActivityStatus {
   if (activity.verified === true) return "VERIFIED";
   if (activity.rejectionReason) return "REJECTED";
   return "PENDING";
+}
+
+/**
+ * The URL if it is an absolute http(s) URL, otherwise null. Use before
+ * rendering a user-supplied URL as a link (blocks javascript:, data: etc.).
+ */
+export function safeHttpUrl(value?: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 export function getDurationMinutes(activity: ActivityResponse): number {

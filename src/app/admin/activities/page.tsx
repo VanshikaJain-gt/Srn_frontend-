@@ -7,6 +7,7 @@ import {
   getAdminActivities,
   getDurationMinutes,
   rejectActivity,
+  safeHttpUrl,
   verifyActivity,
 } from "@/services/activity.service";
 import { ApiError } from "@/lib/api-client";
@@ -213,6 +214,7 @@ export default function AdminActivitiesPage() {
                             label="Source"
                             value={activity.source || "MANUAL"}
                           />
+                          <ProofLink url={activity.proofUrl} />
                         </div>
                       </div>
                     </div>
@@ -252,6 +254,30 @@ export default function AdminActivitiesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Opens the runner's proof in a new tab; only http(s) URLs are rendered as links. */
+function ProofLink({ url }: { url?: string | null }) {
+  const href = safeHttpUrl(url);
+
+  if (!href) {
+    return (
+      <span className="rounded-lg bg-gray-50 px-3 py-2 font-bold text-gray-400">
+        No proof
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rounded-lg bg-orange-50 px-3 py-2 font-bold text-orange-700 underline hover:bg-orange-100"
+    >
+      View Proof ↗
+    </a>
   );
 }
 

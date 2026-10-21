@@ -1,11 +1,17 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
 } from "@/lib/api-client";
+import {
+  PROOF_IMAGE_TYPES,
+  PROOF_UPLOAD_ENABLED,
+  uploadProofImage,
+  validateProofImage,
+} from "@/lib/cloudinary";
 import {
   getMyRegistrations,
   PARTICIPATION_ALLOWED,
@@ -17,6 +23,7 @@ import {
   getActivityStatus,
   getDurationMinutes,
   getMyActivities,
+  safeHttpUrl,
 } from "@/services/activity.service";
 
 function formatDate(value?: string | null) {
@@ -73,6 +80,14 @@ export default function ActivitiesPage() {
   const [distanceKm, setDistanceKm] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [caption, setCaption] = useState("");
+  // Proof: a pasted link OR an uploaded screenshot (exactly one is sent).
+  const [proofLink, setProofLink] = useState("");
+  const [proofImageUrl, setProofImageUrl] = useState("");
+  const [proofImageName, setProofImageName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [proofError, setProofError] = useState("");
+  // Changing the key resets the file input after a submit or removal.
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const activeChallengeRegistrations = useMemo(
     () => registrations.filter(canSubmitFor),
@@ -129,9 +144,43 @@ export default function ActivitiesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function clearProofImage() {
+    setProofImageUrl("");
+    setProofImageName("");
+    setFileInputKey((key) => key + 1);
+  }
+
+  async function handleProofFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setProofError("");
+    if (!file) return;
+
+    const invalid = validateProofImage(file);
+    if (invalid) {
+      setProofError(invalid);
+      clearProofImage();
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const url = await uploadProofImage(file);
+      setProofImageUrl(url);
+      setProofImageName(file.name);
+      setProofLink("");
+    } catch (err) {
+      setProofError(
+        err instanceof Error ? err.message : "Screenshot upload failed."
+      );
+      clearProofImage();
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) return;
+    if (submitting || uploading) return;
     setError("");
     setSuccess("");
 
@@ -162,6 +211,28 @@ export default function ActivitiesPage() {
       return;
     }
 
+    const trimmedProofLink = proofLink.trim();
+    const proofUrl = proofImageUrl || trimmedProofLink;
+
+    if (!proofUrl) {
+      setError(
+        PROOF_UPLOAD_ENABLED
+          ? "Proof is required: paste a link to your run or upload a screenshot."
+          : "Proof is required: paste a link to your run."
+      );
+      return;
+    }
+
+    if (
+      !proofImageUrl &&
+      (!safeHttpUrl(trimmedProofLink) || trimmedProofLink.length > 1000)
+    ) {
+      setError(
+        "Proof link must be a valid http:// or https:// URL (max 1000 characters)."
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
 
@@ -185,6 +256,7 @@ export default function ActivitiesPage() {
         distanceKm: distance,
         durationSec: Math.round(duration * 60),
         caption: caption.trim() || null,
+        proofUrl,
       });
 
       setSuccess(
@@ -193,6 +265,9 @@ export default function ActivitiesPage() {
       setDistanceKm("");
       setDurationMinutes("");
       setCaption("");
+      setProofLink("");
+      setProofError("");
+      clearProofImage();
       await loadData();
     } catch (err) {
       setError(
@@ -302,6 +377,75 @@ export default function ActivitiesPage() {
                 />
               </Field>
 
+              <div>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-[#594139]">
+                  Proof (required)
+                </span>
+                <p className="mb-3 text-xs text-[#594139]">
+                  {PROOF_UPLOAD_ENABLED
+                    ? "Paste a link to your run (e.g. Strava, Garmin) or upload a screenshot."
+                    : "Paste a link to your run (e.g. Strava, Garmin)."}
+                </p>
+
+                <input
+                  type="url"
+                  inputMode="url"
+                  value={proofLink}
+                  onChange={(event) => setProofLink(event.target.value)}
+                  maxLength={1000}
+                  disabled={Boolean(proofImageUrl) || uploading}
+                  placeholder="https://www.strava.com/activities/..."
+                  aria-label="Proof link"
+                  className="w-full rounded-xl border border-[#e1bfb5] px-4 py-3 text-sm outline-none focus:border-[#ab3500] disabled:bg-[#f9f9f8] disabled:text-gray-400"
+                />
+
+                {PROOF_UPLOAD_ENABLED && (
+                  <>
+                    <p className="my-2 text-center text-xs font-bold uppercase tracking-[0.12em] text-[#8d7168]">
+                      or
+                    </p>
+
+                    {proofImageUrl ? (
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm">
+                        <span className="min-w-0 truncate font-semibold text-green-700">
+                          ✓ Screenshot uploaded
+                          {proofImageName ? `: ${proofImageName}` : ""}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={clearProofImage}
+                          className="shrink-0 text-xs font-bold text-[#ab3500] underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        key={fileInputKey}
+                        type="file"
+                        accept={PROOF_IMAGE_TYPES.join(",")}
+                        onChange={handleProofFile}
+                        disabled={uploading}
+                        aria-label="Proof screenshot"
+                        className="block w-full cursor-pointer rounded-xl border border-dashed border-[#e1bfb5] px-4 py-3 text-sm text-[#594139] file:mr-3 file:rounded-lg file:border-0 file:bg-[#ffe9e3] file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-[#ab3500] disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    )}
+
+                    <p className="mt-2 text-xs text-[#8d7168]">
+                      {uploading
+                        ? "Uploading screenshot..."
+                        : "JPG, PNG or WEBP, max 5 MB."}
+                    </p>
+                  </>
+                )}
+
+                {proofError && (
+                  <p className="mt-2 text-xs font-semibold text-red-700">
+                    {proofError}
+                  </p>
+                )}
+              </div>
+
               {!activeChallengeRegistrations.length && !loading && (
                 <div className="rounded-xl bg-[#fff1ed] px-4 py-3 text-sm text-[#594139]">
                   {unpaidChallengeRegistrations.length > 0 ? (
@@ -333,11 +477,18 @@ export default function ActivitiesPage() {
               <button
                 type="submit"
                 disabled={
-                  submitting || loading || !activeChallengeRegistrations.length
+                  submitting ||
+                  uploading ||
+                  loading ||
+                  !activeChallengeRegistrations.length
                 }
                 className="w-full rounded-xl bg-[#ff5a1f] px-4 py-3 font-bold text-white transition hover:bg-[#e84b14] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {submitting ? "Submitting..." : "Submit Activity"}
+                {submitting
+                  ? "Submitting..."
+                  : uploading
+                    ? "Uploading screenshot..."
+                    : "Submit Activity"}
               </button>
             </form>
           </section>
@@ -421,6 +572,17 @@ export default function ActivitiesPage() {
                       />
                       <Stat label="Activity ID" value={`#${activity.id}`} />
                     </div>
+
+                    {safeHttpUrl(activity.proofUrl) && (
+                      <a
+                        href={safeHttpUrl(activity.proofUrl) ?? undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex text-xs font-bold text-[#ab3500] underline"
+                      >
+                        View proof ↗
+                      </a>
+                    )}
 
                     {activity.rejectionReason && (
                       <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
